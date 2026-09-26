@@ -2,8 +2,7 @@
 
 A lightweight tool written in Rust to inject **GNOME Libadwaita styling**, **eliminate the Wayland blue borders**, and **debloat/optimize Spotify on Linux**.
 
-## How It Solves the Blue Border (Without X11)
-
+## How it works
 On GNOME Wayland, Spotify creates top-level windows using CEF's Views framework (`cef_window_create_top_level`). On Linux, Spotify's window delegate hardcodes `is_frameless = 0` (unlike Windows where it defaults to frameless). This instructs Chromium/CEF to render a fallback client-side titlebar and border using GNOME's blue accent color (`#3584e4`).
 
 `spotify-adwaita` provides a solution:
