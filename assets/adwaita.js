@@ -1,5 +1,5 @@
 /**
- * Spotify Adwaita - Debloat, Telemetry Blocker & Seamless Top-Right Window Controls
+ * Spotify Adwaita - Debloat, Telemetry Blocker & Seamless Window Controls
  */
 
 (function () {
@@ -17,7 +17,14 @@
         '/telemetry/',
         '/event-service/',
         '/v1/events',
-        '/beacon/'
+        '/melody/v1/log',
+        '/melody/v1/batch',
+        '/logging/',
+        '/beacon/',
+        'analytics.spotify.com',
+        'sentry.io',
+        'google-analytics.com',
+        'doubleclick.net'
     ];
 
     function shouldBlock(url) {
@@ -58,21 +65,131 @@
     };
 
     // -------------------------------------------------------------
-    // 2. Power & CPU Throttling for Hidden/Minimized Window
+    // 2. Intelligent CDN Image Downscaling (Memory & Scroll Performance)
+    // Downscales 640x640 thumbnails to 300x300 (same as Spotify Web Player).
+    // Saves ~78% uncompressed VRAM and eliminates downsampling lag.
+    // -------------------------------------------------------------
+    window.__ADW_DOWNSCALE_COUNT__ = 0;
+
+    function downscaleImageUrl(url) {
+        if (typeof url === 'string') {
+            if (url.includes('ab67616d0000b273')) {
+                window.__ADW_DOWNSCALE_COUNT__++;
+                return url.replace('ab67616d0000b273', 'ab67616d00001e02');
+            }
+            if (url.includes('ab6761610000e5eb')) {
+                window.__ADW_DOWNSCALE_COUNT__++;
+                return url.replace('ab6761610000e5eb', 'ab67616100005174');
+            }
+        }
+        return url;
+    }
+
+    try {
+        const imgDesc = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
+        if (imgDesc && imgDesc.set) {
+            Object.defineProperty(HTMLImageElement.prototype, 'src', {
+                set: function (val) {
+                    return imgDesc.set.call(this, downscaleImageUrl(val));
+                },
+                get: function () {
+                    return imgDesc.get.call(this);
+                },
+                configurable: true
+            });
+        }
+
+        const originalSetAttribute = Element.prototype.setAttribute;
+        Element.prototype.setAttribute = function (name, value) {
+            if (name === 'src' && this instanceof HTMLImageElement) {
+                value = downscaleImageUrl(value);
+            }
+            return originalSetAttribute.call(this, name, value);
+        };
+    } catch (_) {}
+
+    window.__ADW_VERIFY_IMAGES__ = function () {
+        const imgs = Array.from(document.querySelectorAll('img'));
+        const downscaled = imgs.filter(i => i.src && (i.src.includes('1e02') || i.src.includes('5174') || i.src.includes('4851')));
+        const fullres = imgs.filter(i => i.src && (i.src.includes('b273') || i.src.includes('e5eb')));
+        const stats = {
+            totalImages: imgs.length,
+            downscaled300px: downscaled.length,
+            fullres640px: fullres.length,
+            interceptCount: window.__ADW_DOWNSCALE_COUNT__,
+            firstFiveSampleUrls: imgs.slice(0, 5).map(i => i.src)
+        };
+        console.log('[spotify-adwaita] Image Stats:', JSON.stringify(stats, null, 2));
+        return stats;
+    };
+
+    function scanAndDownscaleDom() {
+        const imgs = document.querySelectorAll('img');
+        for (let i = 0; i < imgs.length; i++) {
+            const img = imgs[i];
+            if (img.src && img.src.includes('ab67616d0000b273')) {
+                img.src = img.src.replace('ab67616d0000b273', 'ab67616d00001e02');
+            }
+            if (img.src && img.src.includes('ab6761610000e5eb')) {
+                img.src = img.src.replace('ab6761610000e5eb', 'ab67616100005174');
+            }
+        }
+    }
+
+    // -------------------------------------------------------------
+    // 3. Neuter Sentry & Error Tracing Overhead
+    // -------------------------------------------------------------
+    try {
+        window.__SENTRY__ = window.__SENTRY__ || {};
+        window.__SENTRY__.hub = {
+            getClient: () => null,
+            captureException: () => {},
+            captureMessage: () => {},
+            addBreadcrumb: () => {},
+            setUser: () => {},
+            setTag: () => {},
+            setExtra: () => {}
+        };
+    } catch (_) {}
+
+    // -------------------------------------------------------------
+    // 3. Power & CPU Throttling for Hidden/Minimized Window
     // -------------------------------------------------------------
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
             document.body.classList.add('spotify-adw-hidden');
+            // Pause any playing canvas background video while window is hidden
+            document.querySelectorAll('video').forEach(v => {
+                if (!v.paused) {
+                    v._adwWasPlaying = true;
+                    try { v.pause(); } catch (_) {}
+                }
+            });
         } else {
             document.body.classList.remove('spotify-adw-hidden');
+            // Resume canvas video when window is visible again
+            document.querySelectorAll('video').forEach(v => {
+                if (v._adwWasPlaying) {
+                    delete v._adwWasPlaying;
+                    try { v.play(); } catch (_) {}
+                }
+            });
         }
     });
 
+    // Helper: locate the top header container
+    function getHeaderContainer() {
+        return document.getElementById('global-nav-bar') ||
+               document.querySelector('[data-testid="global-nav-bar"], header, .Root__top-bar, .Root__globalNav');
+    }
+
     // -------------------------------------------------------------
-    // 3. Shift Header UI Containers to prevent window control overlap
+    // 4. Shift Header UI Containers to prevent window control overlap
     // -------------------------------------------------------------
     function updateHeaderOffsets() {
-        const buttons = document.querySelectorAll('button:not(.adw-window-btn)');
+        const nav = getHeaderContainer();
+        // Query buttons strictly inside header container to prevent layout thrashing
+        const buttons = nav ? nav.querySelectorAll('button:not(.adw-window-btn)') : [];
 
         // 1. Right window controls padding
         const rightControls = document.getElementById('adw-window-controls');
@@ -88,8 +205,6 @@
                 }
             }
         }
-
-        const nav = document.getElementById('global-nav-bar') || document.querySelector('[data-testid="global-nav-bar"]');
 
         let rightmost = null;
         let maxX = 0;
@@ -175,7 +290,7 @@
     }
 
     // -------------------------------------------------------------
-    // 4. Seamless Window Controls Injection
+    // 5. Seamless Window Controls Injection
     // -------------------------------------------------------------
     function setupWindowControls() {
         const layout = window.GNOME_BUTTON_LAYOUT || "appmenu:close";
@@ -251,7 +366,7 @@
     }
 
     // -------------------------------------------------------------
-    // 5. Dynamic Draggable Regions (Header drag + Interactive buttons)
+    // 6. Dynamic Draggable Regions (Header drag + Interactive buttons)
     // -------------------------------------------------------------
     let lastRegionsStr = '';
 
@@ -263,16 +378,19 @@
         // 1. Full header is draggable by default (top 64px)
         regions.push(`0,0,${width},64,1`);
 
-        // 2. Query all interactive elements in the top 64px to exclude them from dragging
-        const elements = document.querySelectorAll(
-            'button, input, a, [role="button"], [role="link"], select, textarea, [contenteditable="true"], .adw-window-btn'
-        );
+        // 2. Query interactive elements ONLY in header container to eliminate layout thrashing
+        const nav = getHeaderContainer();
+        const headerElements = nav
+            ? Array.from(nav.querySelectorAll('button, input, a, [role="button"], [role="link"], select, textarea, [contenteditable="true"]'))
+            : [];
 
-        for (const el of elements) {
+        const csdButtons = Array.from(document.querySelectorAll('.adw-window-btn'));
+        const interactive = headerElements.concat(csdButtons);
+
+        for (const el of interactive) {
             const r = el.getBoundingClientRect();
             // Check if element intersects top 64px header area
             if (r.top < 64 && r.bottom > 0 && r.width > 0 && r.height > 0) {
-                // Add comfortable padding around interactive elements
                 const x = Math.max(0, Math.floor(r.left) - 1);
                 const y = Math.max(0, Math.floor(r.top) - 1);
                 const w = Math.ceil(r.width) + 2;
@@ -306,9 +424,29 @@
         // Listen for window resize
         window.addEventListener('resize', scheduleUpdate);
 
-        // Observe DOM mutations to immediately re-apply offsets on route change / SPA renders
-        const observer = new MutationObserver(scheduleUpdate);
+        // Targeted MutationObserver:
+        // Only trigger updates if mutations occur within header or window controls.
+        // Prevents layout thrashing on music playback ticks, lyrics scroll, and tracklist re-renders!
+        const observer = new MutationObserver((mutations) => {
+            let relevant = false;
+            for (let i = 0; i < mutations.length; i++) {
+                const t = mutations[i].target;
+                if (!t || !t.closest) continue;
+                if (t.closest('#global-nav-bar, [data-testid="global-nav-bar"], header, .Root__top-bar, .Root__globalNav, #adw-window-controls, #adw-window-controls-left')) {
+                    relevant = true;
+                    break;
+                }
+            }
+            if (relevant) {
+                scheduleUpdate();
+            }
+        });
+
         observer.observe(document.body, { childList: true, subtree: true });
+
+        // Route change / SPA navigation events
+        window.addEventListener('popstate', scheduleUpdate);
+        window.addEventListener('hashchange', scheduleUpdate);
 
         // Double-click header bar to toggle maximize
         document.addEventListener('dblclick', (e) => {
@@ -320,8 +458,13 @@
             }
         });
 
-        // Periodically verify offsets and interactive buttons (fallback safety)
-        setInterval(scheduleUpdate, 1000);
+        scanAndDownscaleDom();
+
+        // Periodic fallback safety & image downscale check
+        setInterval(() => {
+            scheduleUpdate();
+            scanAndDownscaleDom();
+        }, 2000);
     }
 
     if (document.readyState === 'loading') {

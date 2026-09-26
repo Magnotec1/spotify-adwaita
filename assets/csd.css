@@ -68,3 +68,39 @@ body.spotify-adw-hidden * {
     animation-play-state: paused !important;
     transition: none !important;
 }
+
+/* 4. Performance: Subtree layout containment & blur neutralization */
+.main-trackList-trackListRow,
+[data-testid="tracklist-row"] {
+    contain: layout paint !important;
+}
+
+/* Ensure carousels and album covers overflow smoothly without edge clipping */
+[data-shelf="carousel"],
+.uwh85sg6FQGiXW5B,
+.CsidsUzBet0_Mp5i {
+    overflow: visible !important;
+    contain: none !important;
+}
+
+/* Force hardware-accelerated GPU compositing layers on interactive cards & animated elements */
+.e-10451-card,
+[data-testid="card-click-handler"],
+[data-testid="card-container"],
+.main-card-card,
+.KaJ7sz8SNcApVJVa,
+.J8g7rZ2MDknxmiYP,
+.PR8MBwCMzMgVJLOC,
+.Soi2y7cFv0ENz8UM {
+    will-change: transform, background-color;
+    transform: translateZ(0);
+}
+
+.Root__backdrop,
+.main-entityHeader-overlay,
+.main-actionBarBackground-background,
+.main-home-backdrop,
+.main-topBar-overlay {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}

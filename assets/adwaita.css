@@ -1,4 +1,112 @@
 /**
+ * Spotify Adwaita - Base Wayland CSD Window Controls & Frame Reset
+ */
+
+/* 1. Global Window Frame Reset */
+html, body {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: 100vh !important;
+    width: 100vw !important;
+}
+
+/* 2. Seamless Window Controls (Integrated into Top-Right & Top-Left) */
+#adw-window-controls {
+    display: inline-flex;
+    align-items: center;
+    position: fixed;
+    top: 19px;
+    right: 14px;
+    z-index: 99999999;
+    gap: 8px;
+    -webkit-app-region: no-drag !important;
+}
+
+#adw-window-controls-left {
+    display: inline-flex;
+    align-items: center;
+    position: fixed;
+    top: 19px;
+    left: 14px;
+    z-index: 99999999;
+    gap: 8px;
+    -webkit-app-region: no-drag !important;
+}
+
+.adw-window-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: none;
+    background-color: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    transition: background-color 0.18s cubic-bezier(0.25, 0.46, 0.45, 0.94), transform 0.1s ease;
+    -webkit-app-region: no-drag !important;
+}
+
+.adw-window-btn:hover {
+    background-color: rgba(255, 255, 255, 0.16) !important;
+}
+
+.adw-window-btn:active {
+    background-color: rgba(255, 255, 255, 0.28) !important;
+    transform: scale(0.92);
+}
+
+/* 3. Performance: Freeze visual updates when window is hidden */
+body.spotify-adw-hidden * {
+    animation-play-state: paused !important;
+    transition: none !important;
+}
+
+/* 4. Performance: Subtree layout containment & blur neutralization */
+.main-trackList-trackListRow,
+[data-testid="tracklist-row"] {
+    contain: layout paint !important;
+}
+
+/* Ensure carousels and album covers overflow smoothly without edge clipping */
+[data-shelf="carousel"],
+.uwh85sg6FQGiXW5B,
+.CsidsUzBet0_Mp5i {
+    overflow: visible !important;
+    contain: none !important;
+}
+
+/* Force hardware-accelerated GPU compositing layers on interactive cards & animated elements */
+.e-10451-card,
+[data-testid="card-click-handler"],
+[data-testid="card-container"],
+.main-card-card,
+.KaJ7sz8SNcApVJVa,
+.J8g7rZ2MDknxmiYP,
+.PR8MBwCMzMgVJLOC,
+.Soi2y7cFv0ENz8UM {
+    will-change: transform, background-color;
+    transform: translateZ(0);
+}
+
+.Root__backdrop,
+.main-entityHeader-overlay,
+.main-actionBarBackground-background,
+.main-home-backdrop,
+.main-topBar-overlay {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+
+/**
  * Spotify Adwaita - GNOME Libadwaita Theme & Palette Overrides
  * Harmonizes Spotify with GNOME 47 dark mode
  * Window/Gaps & Bottom Play Bar: #222226 | Main Panels (Home, Library, Now Playing View): #333337
@@ -12,7 +120,7 @@ body,
 .encore-set,
 [class*="encore-"] {
     /* Dynamic System Font */
-    --adw-font: __SYSTEM_FONT__;
+    --adw-font: "Google Sans", Cantarell, -apple-system, system-ui, sans-serif;
     --encore-body-font-stack: var(--adw-font) !important;
     --encore-title-font-stack: var(--adw-font) !important;
     --encore-variable-font-stack: var(--adw-font) !important;
@@ -98,7 +206,6 @@ aside.vEHGULrufZMHBNrp,
 /* B. Main View / Home Page / All Route Views */
 .B0fBZOXNHNc2YVYO,
 main,
-section,
 [data-testid="main-view"],
 [data-testid="home-page"],
 .main-view-container,
@@ -146,15 +253,32 @@ aside[aria-label="Now playing view"] * {
     --cinema-mode-bg-image: none !important;
 }
 
-/* 4. Carousel Row Edge Gradients (Neutralize left/right dark gradient masks) */
+/* 4. Carousel Row Polish & Unclipped Navigation Buttons */
+/* Remove expensive 120px gradient masks & scroll-timeline animation overhead */
 .CsidsUzBet0_Mp5i:before,
-[dir=rtl] .CsidsUzBet0_Mp5i:before {
-    background: linear-gradient(90deg, var(--adw-panel-bg) 0%, rgba(51, 51, 55, 0) 100%) !important;
+.CsidsUzBet0_Mp5i:after {
+    display: none !important;
 }
 
-.CsidsUzBet0_Mp5i:after,
-[dir=rtl] .CsidsUzBet0_Mp5i:after {
-    background: linear-gradient(-90deg, var(--adw-panel-bg) 0%, rgba(51, 51, 55, 0) 100%) !important;
+/* Fix clipped carousel chevron buttons: pull them slightly inward from window edges */
+.Yo80NuQEJANhrEVG {
+    inset-inline-start: 12px !important;
+    inset-inline-end: 12px !important;
+    pointer-events: none !important;
+}
+
+.TnVIvshRoEChk0cA {
+    background-color: var(--adw-card-bg) !important;
+    color: var(--adw-text) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+    border: 1px solid var(--adw-border) !important;
+    pointer-events: auto !important;
+    transition: background-color 0.15s ease, transform 0.1s ease !important;
+}
+
+.TnVIvshRoEChk0cA:hover {
+    background-color: var(--adw-card-hover) !important;
+    transform: scale(1.08) !important;
 }
 
 /* 5. Sticky Top Bar in Home Panel When Scrolled */
@@ -283,43 +407,95 @@ aside[aria-label="Now playing view"] * {
     background-color: var(--adw-panel-bg) !important;
 }
 
-/* 9. Friend Activity (Buddy Feed) Polish */
-.xsEirB_t11cLPyJj {
-    border-radius: var(--adw-radius-medium) !important;
-    padding: 6px 10px !important;
-    margin: 2px 4px !important;
-    transition: background-color 0.15s ease !important;
+/* 9. Friend Activity Polish */
+.qnPIl9fdY2o_u8Hw {
+    padding-left: 24px !important;
 }
-
-.xsEirB_t11cLPyJj:hover {
-    background-color: rgba(255, 255, 255, 0.08) !important;
+.QrZ1VrsZtmod5Bxz {
+    padding-bottom: 0 !important;
 }
-
-.dh732yRltYdmu3cX,
-.dh732yRltYdmu3cX img {
-    border-radius: 50% !important;
+.YZ3y8n8ToUt_xDKt.MZyYJf3i00YTL4FP {
+    padding: 16px !important;
+    padding-top: 0 !important;
 }
-
-.MFrZh1qCrEB0Mim5 {
-    border-radius: 4px !important;
-    box-shadow: 0 0 0 2px var(--adw-panel-bg) !important;
+.g5xgdOgE7W8UyE4v {
+    background-color: var(--adw-card-bg);
+    border-radius: 16px;
+    padding: 12px !important;
+    padding-right: 16px !important;
 }
 
 /* 10. Minimalist Adwaita Scrollbars */
-::-webkit-scrollbar {
-    width: 8px !important;
-    height: 8px !important;
-}
-
-::-webkit-scrollbar-track {
-    background: transparent !important;
-}
-
-::-webkit-scrollbar-thumb {
-    background-color: rgba(255, 255, 255, 0.15) !important;
+.os-scrollbar-handle {
+    width: 6px !important;
+    margin-right: 4px !important;
     border-radius: 4px !important;
 }
 
-::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(255, 255, 255, 0.25) !important;
+/* 11. Artist page tweaks */
+.tsCJQaqF4ALEqTft, .J6wP3V0xzh0Hj_MS {
+    background-color: transparent !important;
+}
+.e-10451-button-primary__inner {
+    background-color: var(--adw-card-hover) !important;
+}
+
+.aotfMYhXr8Ag8I7a, .WqX0xAKGPd8kxMke {
+    border-top-left-radius: 32px !important;
+    border-top-right-radius: 32px !important;
+}
+.tsCJQaqF4ALEqTft {
+    background: #00000055 !important;
+}
+.jiWxWueoicolJZnS.bHqdRdxo4vtOizQq {
+    background: transparent !important;
+}
+.WqX0xAKGPd8kxMke {
+    background: none !important;
+}
+.N1BHSZD2BszRAq4J {
+    background: var(--adw-card-bg) !important;
+}
+
+/* 12. Playlist tweaks */
+.XToncn4_mYHzhKy7 {
+    padding-top: 256px;
+}
+.Emh6sVCoQHM3KQ4_ {
+    background-color: var(--adw-panel-bg)
+}
+
+/* 13. Library page gradient */ 
+.HFowbNOgNPgtZSE4 {
+    box-shadow: 0 6px 16px var(--adw-panel-bg) !important;
+}
+
+/* Home page tweaks */
+.G6TFpStlzBUtt1yi {
+  background: none !important;
+}
+
+/* Large now playing tweaks */
+.WUKDiUW1pRkiUKiu:before {
+    --a: var(--adw-window-bg);
+    background: linear-gradient(
+      color-mix(in srgb, var(--a) 85%, transparent) 0%,
+      color-mix(in srgb, var(--a) 75%, transparent) 15%,
+      color-mix(in srgb, var(--a) 64%, transparent) 25%,
+      color-mix(in srgb, var(--a) 51%, transparent) 35%,
+      color-mix(in srgb, var(--a) 38%, transparent) 45%,
+      color-mix(in srgb, var(--a) 26%, transparent) 55%,
+      color-mix(in srgb, var(--a) 16%, transparent) 65%,
+      color-mix(in srgb, var(--a) 9%,  transparent) 75%,
+      color-mix(in srgb, var(--a) 4%,  transparent) 85%,
+      color-mix(in srgb, var(--a) 1%,  transparent) 93%,
+      transparent 100%
+    );
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+}
+
+/* Now Playing Tweaks */
+.BEeVmHj340c0PYHe {
+    box-shadow: 0 6px 16px var(--adw-panel-bg) !important;
 }

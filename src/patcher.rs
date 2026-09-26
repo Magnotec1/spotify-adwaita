@@ -81,8 +81,8 @@ pub fn patch(xpui_path: &Path, css_content: &str, js_content: &str) -> Result<()
     // 1. Ensure backup exists
     backup(xpui_path)?;
 
-    // 2. Open original archive
-    let in_file = File::open(xpui_path)?;
+    // 2. Open pristine archive from backup
+    let in_file = File::open(backup_path(xpui_path))?;
     let mut in_archive = ZipArchive::new(in_file)?;
 
     // 3. Prepare temporary destination file
@@ -109,7 +109,7 @@ pub fn patch(xpui_path: &Path, css_content: &str, js_content: &str) -> Result<()
         if name == "index.html" {
             let mut html = String::from_utf8(data).context("index.html is not valid UTF-8")?;
 
-            // Inject CSS before </head>
+            // Inject CSS and JS into <head> before any body scripts run
             if !html.contains("spotify-adwaita-css") {
                 let css_tag =
                     r#"<link rel="stylesheet" id="spotify-adwaita-css" href="/adwaita.css">"#;
@@ -120,11 +120,10 @@ pub fn patch(xpui_path: &Path, css_content: &str, js_content: &str) -> Result<()
                 }
             }
 
-            // Inject JS before </body>
             if !html.contains("spotify-adwaita-js") {
                 let js_tag =
-                    r#"<script defer="defer" id="spotify-adwaita-js" src="/adwaita.js"></script>"#;
-                if let Some(pos) = html.find("</body>") {
+                    r#"<script id="spotify-adwaita-js" src="/adwaita.js"></script>"#;
+                if let Some(pos) = html.find("</head>") {
                     html.insert_str(pos, js_tag);
                 } else {
                     html.push_str(js_tag);
