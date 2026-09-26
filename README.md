@@ -23,9 +23,15 @@ On GNOME Wayland, Spotify creates top-level windows using CEF's Views framework 
    * Clicking a button sends an IPC request to the preload server (e.g. `/close`) to trigger native window actions.
 4. **Flags:**
    * Configures `spotify-flags.conf` for `--ozone-platform=wayland` and `--enable-features=UseOzonePlatform` to ensure wayland usage
-5. **Libadwaita Web UI Integration:**
-   * Optionally Injects GNOME Adwaita dark theming into `xpui.spa`.
-   * Blocks tracking beacons (`exp.wg.spotify.com`, `crashdump.spotify.com`, `pixel.spotify.com`) and throttles background rendering when the window is hidden.
+5. **Libadwaita Web UI Integration & In-App Settings:**
+   * Optionally injects GNOME Adwaita dark theming into `xpui.spa`.
+   * Adds a native **Spotify Adwaita** section directly into Spotify's Settings (`/preferences`) with switches to configure:
+     * **Open library in expanded mode on startup**: Automatically expands Your Library into the wide multi-column/grid mode on launch.
+     * **Startup primary page**: Choose between Default (Home), Your Library (Expanded), or Search.
+     * **Intelligent CDN image downscaling**: Downscales 640px cover art to 300px to reduce VRAM consumption and eliminate scroll lag.
+     * **Block telemetry and analytics**: Blocks background telemetry beacons (`exp.wg.spotify.com`, `crashdump.spotify.com`, `pixel.spotify.com`, etc.).
+     * **Throttle power when window is hidden**: Pauses canvas background video and freezes animations when minimized or hidden.
+   * All preferences are stored in `localStorage` and persist across sessions.
 
 ## Usage/Installation
 ```bash
@@ -34,7 +40,8 @@ On GNOME Wayland, Spotify creates top-level windows using CEF's Views framework 
   cargo build --release
 
   ./target/release/spotify-adwaita apply # Stock spotify without theming, just titlebar fixes
-  ./target/release/spotify-adwaita apply --theme # With theming
+  ./target/release/spotify-adwaita apply --theme # With Libadwaita theming
+  ./target/release/spotify-adwaita apply --theme --expand-library # With theming and library expanded on startup
 
   ./target/release/spotify-adwaita restore --restart # Reset and undo all changes made
 ```

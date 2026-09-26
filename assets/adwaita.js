@@ -8,6 +8,90 @@
     console.log('[spotify-adwaita] Initializing Libadwaita enhancements...');
 
     // -------------------------------------------------------------
+    // 0. Configuration Management & Settings System
+    // -------------------------------------------------------------
+    const CONFIG_KEY = 'spotify-adwaita:config';
+
+    const SETTINGS_DEFINITIONS = [
+        {
+            id: 'expandLibraryOnStartup',
+            type: 'switch',
+            label: 'Open library in expanded mode on startup',
+            description: 'Automatically open and expand the Your Library view when launching Spotify',
+            default: false,
+            onChange: (val) => {
+                if (val) expandLibrary();
+            }
+        },
+        {
+            id: 'startupPage',
+            type: 'select',
+            label: 'Startup primary page',
+            description: 'Select the default page displayed when Spotify opens',
+            default: 'default',
+            options: [
+                { value: 'default', label: 'Default (Home)' },
+                { value: 'library', label: 'Your Library (Expanded)' },
+                { value: 'search', label: 'Search' }
+            ]
+        },
+        {
+            id: 'downscaleImages',
+            type: 'switch',
+            label: 'Intelligent CDN image downscaling',
+            description: 'Downscale 640px cover art to 300px to reduce VRAM consumption and eliminate scroll lag',
+            default: true
+        },
+        {
+            id: 'blockTelemetry',
+            type: 'switch',
+            label: 'Block telemetry and analytics',
+            description: 'Prevent background telemetry, crash reporting, and tracking requests to improve privacy and performance',
+            default: true
+        },
+        {
+            id: 'throttleHiddenPower',
+            type: 'switch',
+            label: 'Throttle power when window is hidden',
+            description: 'Pause background canvas videos and freeze CSS animations when the Spotify window is hidden or minimized',
+            default: true
+        }
+    ];
+
+    function loadConfig() {
+        const defaults = {};
+        for (const s of SETTINGS_DEFINITIONS) {
+            defaults[s.id] = s.default;
+        }
+        if (typeof window.__ADW_DEFAULT_CONFIG === 'object' && window.__ADW_DEFAULT_CONFIG) {
+            Object.assign(defaults, window.__ADW_DEFAULT_CONFIG);
+        }
+        try {
+            const raw = localStorage.getItem(CONFIG_KEY);
+            if (raw) {
+                return Object.assign({}, defaults, JSON.parse(raw));
+            }
+        } catch (_) {}
+        return Object.assign({}, defaults);
+    }
+
+    let config = loadConfig();
+
+    function saveConfig(patch) {
+        config = Object.assign({}, config, patch);
+        try {
+            localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+        } catch (_) {}
+    }
+
+    window.__spotifyAdwaita = {
+        getConfig: () => Object.assign({}, config),
+        saveConfig,
+        expandLibrary: () => expandLibrary(),
+        definitions: SETTINGS_DEFINITIONS
+    };
+
+    // -------------------------------------------------------------
     // 1. Telemetry & Analytics Blocker (Performance Improvement)
     // -------------------------------------------------------------
     const BLOCKED_DOMAINS = [
@@ -28,6 +112,7 @@
     ];
 
     function shouldBlock(url) {
+        if (!config.blockTelemetry) return false;
         if (!url) return false;
         const str = String(url);
         return BLOCKED_DOMAINS.some(domain => str.includes(domain));
@@ -72,6 +157,7 @@
     window.__ADW_DOWNSCALE_COUNT__ = 0;
 
     function downscaleImageUrl(url) {
+        if (!config.downscaleImages) return url;
         if (typeof url === 'string') {
             if (url.includes('ab67616d0000b273')) {
                 window.__ADW_DOWNSCALE_COUNT__++;
@@ -156,6 +242,7 @@
     // 3. Power & CPU Throttling for Hidden/Minimized Window
     // -------------------------------------------------------------
     document.addEventListener('visibilitychange', () => {
+        if (!config.throttleHiddenPower) return;
         if (document.hidden) {
             document.body.classList.add('spotify-adw-hidden');
             // Pause any playing canvas background video while window is hidden
@@ -406,10 +493,209 @@
         fetch(`http://127.0.0.1:45454/regions?r=${regionsStr}`, { mode: 'no-cors' }).catch(() => {});
     }
 
+    // -------------------------------------------------------------
+    // 7. Library Mode & Startup Expansion
+    // -------------------------------------------------------------
+    function isLibraryAlreadyExpanded() {
+        return !!Array.from(document.querySelectorAll('button')).find(b => {
+            const aria = (b.getAttribute('aria-label') || '').toLowerCase();
+            return aria.includes('minimize your library') ||
+                   aria.includes('reduce your library') ||
+                   b.querySelector('svg path[d*="M14.53 1.47"]');
+        });
+    }
+
+    function expandLibrary() {
+        if (isLibraryAlreadyExpanded()) return true;
+
+        // 1. If library is completely collapsed to icons, open it first
+        const openBtn = Array.from(document.querySelectorAll('button')).find(b => {
+            const aria = (b.getAttribute('aria-label') || '').toLowerCase();
+            return aria.includes('open your library') || b.querySelector('svg path[d*="M1 0a1 1 0 0 0-1 1v14"]');
+        });
+        if (openBtn) {
+            openBtn.click();
+        }
+
+        // 2. Click expand button
+        const expandBtn = Array.from(document.querySelectorAll('button')).find(b => {
+            const aria = (b.getAttribute('aria-label') || '').toLowerCase();
+            return (aria.includes('expand your library') || aria.includes('enlarge your library')) ||
+                   (b.querySelector('svg path[d*="M6.53 9.47"]') && b.closest('.ctNLVWve8CosEgh2, nav, [aria-label="Your Library"], [data-testid="your-library-x"]'));
+        });
+
+        if (expandBtn) {
+            expandBtn.click();
+            return true;
+        }
+
+        return false;
+    }
+
+    let startupPreferencesApplied = false;
+
+    function applyStartupPreferences() {
+        if (startupPreferencesApplied) return;
+
+        const shouldExpand = config.expandLibraryOnStartup || config.startupPage === 'library';
+
+        if (shouldExpand) {
+            let attempts = 0;
+            const expandTimer = setInterval(() => {
+                attempts++;
+                if (expandLibrary() || attempts >= 25) {
+                    clearInterval(expandTimer);
+                }
+            }, 250);
+        }
+
+        if (config.startupPage === 'search') {
+            let searchAttempts = 0;
+            const searchTimer = setInterval(() => {
+                searchAttempts++;
+                const searchBtn = document.querySelector('[data-testid="search-icon"], [aria-label="Search"]')?.closest('button') ||
+                                  document.querySelector('[data-testid="search-icon"]');
+                if (searchBtn) {
+                    searchBtn.click();
+                    clearInterval(searchTimer);
+                } else if (searchAttempts >= 20) {
+                    clearInterval(searchTimer);
+                }
+            }, 250);
+        } else if (config.startupPage === 'home') {
+            let homeAttempts = 0;
+            const homeTimer = setInterval(() => {
+                homeAttempts++;
+                const homeBtn = document.querySelector('[data-testid="home-button"], [aria-label="Home"]');
+                if (homeBtn) {
+                    homeBtn.click();
+                    clearInterval(homeTimer);
+                } else if (homeAttempts >= 20) {
+                    clearInterval(homeTimer);
+                }
+            }, 250);
+        }
+
+        startupPreferencesApplied = true;
+    }
+
+    // -------------------------------------------------------------
+    // 8. Custom Spotify Adwaita Settings Page Section
+    // -------------------------------------------------------------
+    function checkAndInjectSettings() {
+        const page = document.querySelector('[data-testid="settings-page"]');
+        if (!page) return;
+        if (document.getElementById('adw-settings-section')) return;
+
+        const section = document.createElement('div');
+        section.id = 'adw-settings-section';
+        section.className = 'fNaaQ0Cp8Yzy19j8 adw-settings-container';
+
+        let innerHtml = `
+            <div class="adw-settings-header">
+                <h2 class="e-10451-text encore-text-body-medium-bold encore-internal-color-text-base adw-settings-title" data-encore-id="text">Spotify Adwaita</h2>
+            </div>
+        `;
+
+        for (const s of SETTINGS_DEFINITIONS) {
+            const currentVal = config[s.id];
+            innerHtml += `
+                <div class="qV_CxbowaNkMarye adw-setting-row" data-setting-id="${s.id}">
+                    <div class="FLjFgCRmVaE0WSqc YiisLjvymVYZFCzm adw-setting-info">
+                        <label class="e-10451-text encore-text-body-small encore-internal-color-text-base adw-setting-label" data-encore-id="text" for="adw-setting-${s.id}">${s.label}</label>
+                        <span class="e-10451-text encore-text-marginal encore-internal-color-text-subdued adw-setting-desc" data-encore-id="text">${s.description}</span>
+                    </div>
+                    <div class="hgljrmQksnQei4xj adw-setting-control">
+            `;
+
+            if (s.type === 'switch') {
+                innerHtml += `
+                    <label class="_nD_jYvjV80Rf8sX" style="cursor: pointer;">
+                        <input id="adw-setting-${s.id}" class="vTxmx3oTF8tWUPD7" type="checkbox" ${currentVal ? 'checked' : ''}>
+                        <span class="hzLQN8eYDPYyn1km"><span class="t3q6uAPe7y0rAqRK"></span></span>
+                    </label>
+                `;
+            } else if (s.type === 'select') {
+                innerHtml += `
+                    <span>
+                        <select class="lu9EejNhmuMFF3oS adw-select" id="adw-setting-${s.id}">
+                            ${s.options.map(opt => `<option value="${opt.value}" ${currentVal === opt.value ? 'selected' : ''}>${opt.label}</option>`).join('')}
+                        </select>
+                    </span>
+                `;
+            }
+
+            innerHtml += `
+                    </div>
+                </div>
+            `;
+        }
+
+        section.innerHTML = innerHtml;
+
+        // Bind events
+        for (const s of SETTINGS_DEFINITIONS) {
+            const el = section.querySelector(`#adw-setting-${s.id}`);
+            if (!el) continue;
+            if (s.type === 'switch') {
+                el.addEventListener('change', (e) => {
+                    saveConfig({ [s.id]: e.target.checked });
+                    if (typeof s.onChange === 'function') {
+                        s.onChange(e.target.checked);
+                    }
+                });
+            } else if (s.type === 'select') {
+                el.addEventListener('change', (e) => {
+                    saveConfig({ [s.id]: e.target.value });
+                    if (typeof s.onChange === 'function') {
+                        s.onChange(e.target.value);
+                    }
+                });
+            }
+        }
+
+        // Integrate with settings search filter
+        const searchInput = page.querySelector('input[placeholder*="Search"], input[type="text"]');
+        if (searchInput) {
+            const rows = section.querySelectorAll('.adw-setting-row');
+            const filterSettings = () => {
+                const q = (searchInput.value || '').trim().toLowerCase();
+                if (!q) {
+                    section.style.display = '';
+                    rows.forEach(r => r.style.display = '');
+                    return;
+                }
+                let visibleCount = 0;
+                rows.forEach(r => {
+                    const text = (r.innerText || '').toLowerCase();
+                    if (text.includes(q) || 'spotify adwaita'.includes(q)) {
+                        r.style.display = '';
+                        visibleCount++;
+                    } else {
+                        r.style.display = 'none';
+                    }
+                });
+                section.style.display = visibleCount > 0 ? '' : 'none';
+            };
+            searchInput.addEventListener('input', filterSettings);
+        }
+
+        // Insert section right after "Startup and window behaviour" section or at bottom
+        const allSections = Array.from(page.children);
+        const startupSec = allSections.find(c => c.innerText && c.innerText.includes('Startup and window behaviour'));
+        if (startupSec && startupSec.nextSibling) {
+            page.insertBefore(section, startupSec.nextSibling);
+        } else {
+            page.appendChild(section);
+        }
+    }
+
     function init() {
         setupWindowControls();
         updateHeaderOffsets();
         syncDraggableRegions();
+        checkAndInjectSettings();
+        applyStartupPreferences();
 
         let animFrameId = null;
         function scheduleUpdate() {
@@ -418,6 +704,7 @@
                 animFrameId = null;
                 updateHeaderOffsets();
                 syncDraggableRegions();
+                checkAndInjectSettings();
             });
         }
 
@@ -425,14 +712,13 @@
         window.addEventListener('resize', scheduleUpdate);
 
         // Targeted MutationObserver:
-        // Only trigger updates if mutations occur within header or window controls.
-        // Prevents layout thrashing on music playback ticks, lyrics scroll, and tracklist re-renders!
+        // Monitors header, window controls, settings page, and library container
         const observer = new MutationObserver((mutations) => {
             let relevant = false;
             for (let i = 0; i < mutations.length; i++) {
                 const t = mutations[i].target;
                 if (!t || !t.closest) continue;
-                if (t.closest('#global-nav-bar, [data-testid="global-nav-bar"], header, .Root__top-bar, .Root__globalNav, #adw-window-controls, #adw-window-controls-left')) {
+                if (t.closest('#global-nav-bar, [data-testid="global-nav-bar"], header, .Root__top-bar, .Root__globalNav, #adw-window-controls, #adw-window-controls-left, [data-testid="settings-page"], nav, [aria-label="Your Library"], [data-testid="your-library-x"]')) {
                     relevant = true;
                     break;
                 }
@@ -445,8 +731,14 @@
         observer.observe(document.body, { childList: true, subtree: true });
 
         // Route change / SPA navigation events
-        window.addEventListener('popstate', scheduleUpdate);
-        window.addEventListener('hashchange', scheduleUpdate);
+        window.addEventListener('popstate', () => {
+            scheduleUpdate();
+            setTimeout(checkAndInjectSettings, 100);
+        });
+        window.addEventListener('hashchange', () => {
+            scheduleUpdate();
+            setTimeout(checkAndInjectSettings, 100);
+        });
 
         // Double-click header bar to toggle maximize
         document.addEventListener('dblclick', (e) => {
@@ -464,6 +756,7 @@
         setInterval(() => {
             scheduleUpdate();
             scanAndDownscaleDom();
+            checkAndInjectSettings();
         }, 2000);
     }
 
@@ -473,3 +766,4 @@
         init();
     }
 })();
+

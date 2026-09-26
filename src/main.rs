@@ -38,6 +38,10 @@ enum Commands {
         /// Set interface font family (defaults to detected GNOME system font)
         #[arg(long)]
         font: Option<String>,
+
+        /// Open library in expanded mode on startup by default
+        #[arg(long)]
+        expand_library: bool,
     },
     /// Restore original Spotify UI and remove Wayland flags
     Restore {
@@ -130,6 +134,7 @@ fn main() -> Result<()> {
             theme,
             no_theme,
             font,
+            expand_library,
         } => {
             let enable_theme = match (theme, no_theme) {
                 (Some(false), _) | (_, true) => false,
@@ -149,6 +154,10 @@ fn main() -> Result<()> {
                 println!("    (Tip: Use `--theme` to enable GNOME #222226 dark theming)");
             }
 
+            if expand_library {
+                println!("  • Expand library on startup: ENABLED (defaulting to wide/expanded mode)");
+            }
+
             // 1. Configure Wayland flags (native Ozone + hardware GPU acceleration)
             flags::configure_flags(&install.config_dir)?;
             println!("✓ Configured Wayland & performance flags in {:?}", install.config_dir);
@@ -163,7 +172,10 @@ fn main() -> Result<()> {
             let button_layout = detector::get_gnome_button_layout();
             println!("✓ Detected GNOME button-layout: {}", button_layout);
 
-            let js_with_layout = format!("window.GNOME_BUTTON_LAYOUT = {:?};\n{}", button_layout, ADWAITA_JS);
+            let mut js_with_layout = format!("window.GNOME_BUTTON_LAYOUT = {:?};\n{}", button_layout, ADWAITA_JS);
+            if expand_library {
+                js_with_layout = format!("window.__ADW_DEFAULT_CONFIG = {{ expandLibraryOnStartup: true }};\n{}", js_with_layout);
+            }
             let font_stack = format!("\"{}\", Cantarell, -apple-system, system-ui, sans-serif", selected_font);
             let theme_css = ADWAITA_CSS.replace("__SYSTEM_FONT__", &font_stack);
 
