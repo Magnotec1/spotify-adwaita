@@ -39,7 +39,11 @@ enum Commands {
         #[arg(long)]
         font: Option<String>,
 
-        /// Open library in expanded mode on startup by default
+        /// Set startup primary page (home, search, library, now-playing)
+        #[arg(long)]
+        startup_page: Option<String>,
+
+        /// Open library in expanded mode on startup by default (alias for --startup-page=library)
         #[arg(long)]
         expand_library: bool,
     },
@@ -57,25 +61,35 @@ enum Commands {
 
 fn kill_spotify() {
     println!("Stopping Spotify...");
-    let _ = Command::new("pkill").arg("-9").arg("-f").arg("spotify").status();
-    std::thread::sleep(std::time::Duration::from_millis(600));
+    let _ = Command::new("flatpak").args(["kill", "com.spotify.Client"]).status();
+    let _ = Command::new("pkill").arg("-15").arg("-x").arg("spotify").status();
+    for _ in 0..10 {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        let running = Command::new("pgrep")
+            .arg("-x")
+            .arg("spotify")
+            .output()
+            .map(|o| !o.stdout.is_empty())
+            .unwrap_or(false);
+        if !running {
+            return;
+        }
+    }
+    let _ = Command::new("pkill").arg("-9").arg("-x").arg("spotify").status();
+    std::thread::sleep(std::time::Duration::from_millis(300));
 }
 
 fn launch_spotify() -> Result<()> {
     println!("Launching Spotify via Flatpak...");
-    let status = Command::new("systemd-run")
-        .args(["--user", "flatpak", "run", "com.spotify.Client"])
-        .status();
-
-    if status.is_err() || !status.as_ref().unwrap().success() {
-        Command::new("flatpak")
-            .args(["run", "com.spotify.Client"])
-            .stdin(std::process::Stdio::null())
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .spawn()
-            .context("Failed to launch Spotify via Flatpak")?;
-    }
+    use std::os::unix::process::CommandExt;
+    Command::new("flatpak")
+        .args(["run", "com.spotify.Client"])
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .process_group(0)
+        .spawn()
+        .context("Failed to launch Spotify via Flatpak")?;
     Ok(())
 }
 
@@ -134,6 +148,7 @@ fn main() -> Result<()> {
             theme,
             no_theme,
             font,
+            startup_page,
             expand_library,
         } => {
             let enable_theme = match (theme, no_theme) {
@@ -154,8 +169,16 @@ fn main() -> Result<()> {
                 println!("    (Tip: Use `--theme` to enable GNOME #222226 dark theming)");
             }
 
-            if expand_library {
-                println!("  • Expand library on startup: ENABLED (defaulting to wide/expanded mode)");
+            let effective_startup = startup_page.or_else(|| {
+                if expand_library {
+                    Some("library".to_string())
+                } else {
+                    None
+                }
+            });
+
+            if let Some(ref page) = effective_startup {
+                println!("  • Startup page:            {}", page);
             }
 
             // 1. Configure Wayland flags (native Ozone + hardware GPU acceleration)
@@ -172,10 +195,30 @@ fn main() -> Result<()> {
             let button_layout = detector::get_gnome_button_layout();
             println!("✓ Detected GNOME button-layout: {}", button_layout);
 
-            let mut js_with_layout = format!("window.GNOME_BUTTON_LAYOUT = {:?};\n{}", button_layout, ADWAITA_JS);
-            if expand_library {
-                js_with_layout = format!("window.__ADW_DEFAULT_CONFIG = {{ expandLibraryOnStartup: true }};\n{}", js_with_layout);
+            let config_path = install.config_dir.join("spotify-adwaita-config.json");
+            let mut disk_config: serde_json::Map<String, serde_json::Value> = if config_path.exists() {
+                std::fs::read_to_string(&config_path)
+                    .ok()
+                    .and_then(|s| serde_json::from_str(&s).ok())
+                    .unwrap_or_default()
+            } else {
+                serde_json::Map::new()
+            };
+
+            if let Some(ref page) = effective_startup {
+                disk_config.insert("startupPage".to_string(), serde_json::json!(page));
             }
+            disk_config.remove("expandLibraryOnStartup");
+
+            if let Ok(json_str) = serde_json::to_string_pretty(&disk_config) {
+                let _ = std::fs::write(&config_path, json_str);
+            }
+
+            let cfg_json = serde_json::to_string(&disk_config).unwrap_or_else(|_| "{}".to_string());
+            let js_with_layout = format!(
+                "window.GNOME_BUTTON_LAYOUT = {:?};\nwindow.__ADW_DEFAULT_CONFIG = {};\n{}",
+                button_layout, cfg_json, ADWAITA_JS
+            );
             let font_stack = format!("\"{}\", Cantarell, -apple-system, system-ui, sans-serif", selected_font);
             let theme_css = ADWAITA_CSS.replace("__SYSTEM_FONT__", &font_stack);
 

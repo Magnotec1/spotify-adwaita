@@ -10,6 +10,8 @@
 #include <sys/un.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <ctype.h>
+#include <signal.h>
 
 // -----------------------------------------------------------------------------
 // 1. Forward original app_indicator symbols expected by Spotify Flatpak
@@ -108,6 +110,7 @@ typedef int (*cef_window_bool_t)(void* window);
 typedef void (*set_draggable_regions_t)(void* window, size_t count, const cef_draggable_region_t* regions);
 typedef int (*cef_post_task_t)(int thread_id, void* task);
 
+#define CEF_WINDOW_CLOSE_OFFSET        0x258
 #define CEF_WINDOW_MAXIMIZE_OFFSET     0x288
 #define CEF_WINDOW_MINIMIZE_OFFSET     0x290
 #define CEF_WINDOW_RESTORE_OFFSET      0x298
@@ -128,6 +131,7 @@ static void init_cef_post_task(void) {
 enum {
     WINDOW_ACTION_MINIMIZE = 1,
     WINDOW_ACTION_TOGGLE_MAXIMIZE = 2,
+    WINDOW_ACTION_CLOSE = 3,
 };
 
 typedef struct {
@@ -192,6 +196,13 @@ static void action_task_execute(void* s) {
                     maximize_fn(g_window);
                 }
             }
+        } else if (t->action == WINDOW_ACTION_CLOSE) {
+            cef_window_action_t close_fn = *(cef_window_action_t*)((char*)g_window + CEF_WINDOW_CLOSE_OFFSET);
+            if (close_fn) {
+                fprintf(stderr, "[spotify-adwaita][pid %d] Closing window on UI thread\n", getpid());
+                fflush(stderr);
+                close_fn(g_window);
+            }
         }
     }
 }
@@ -205,6 +216,7 @@ static void post_window_action(int action) {
         cef_window_action_t minimize_fn = *(cef_window_action_t*)((char*)g_window + CEF_WINDOW_MINIMIZE_OFFSET);
         cef_window_action_t restore_fn = *(cef_window_action_t*)((char*)g_window + CEF_WINDOW_RESTORE_OFFSET);
         cef_window_bool_t is_maximized_fn = *(cef_window_bool_t*)((char*)g_window + CEF_WINDOW_IS_MAXIMIZED_OFFSET);
+        cef_window_action_t close_fn = *(cef_window_action_t*)((char*)g_window + CEF_WINDOW_CLOSE_OFFSET);
 
         if (action == WINDOW_ACTION_MINIMIZE && minimize_fn) {
             minimize_fn(g_window);
@@ -214,6 +226,8 @@ static void post_window_action(int action) {
             } else {
                 maximize_fn(g_window);
             }
+        } else if (action == WINDOW_ACTION_CLOSE && close_fn) {
+            close_fn(g_window);
         }
         return;
     }
@@ -373,6 +387,55 @@ static int get_titlebar_height_hook(void* self, void* window, float* titlebar_he
     return 1;
 }
 
+static void get_adw_config_path(char* out, size_t max_len) {
+    const char* xdg = getenv("XDG_CONFIG_HOME");
+    const char* home = getenv("HOME");
+    if (xdg && strlen(xdg) > 0) {
+        if (strstr(xdg, "com.spotify.Client")) {
+            snprintf(out, max_len, "%s/spotify-adwaita-config.json", xdg);
+            return;
+        } else {
+            snprintf(out, max_len, "%s/spotify/spotify-adwaita-config.json", xdg);
+            return;
+        }
+    }
+    if (home && strlen(home) > 0) {
+        char test_path[1024];
+        snprintf(test_path, sizeof(test_path), "%s/.var/app/com.spotify.Client/config", home);
+        if (access(test_path, W_OK) == 0) {
+            snprintf(out, max_len, "%s/spotify-adwaita-config.json", test_path);
+            return;
+        }
+        snprintf(out, max_len, "%s/.config/spotify/spotify-adwaita-config.json", home);
+        return;
+    }
+    snprintf(out, max_len, "/tmp/spotify-adwaita-config.json");
+}
+
+static void urldecode(char* dst, const char* src) {
+    char a, b;
+    while (*src) {
+        if ((*src == '%') &&
+            ((a = src[1]) && (b = src[2])) &&
+            (isxdigit((unsigned char)a) && isxdigit((unsigned char)b))) {
+            if (a >= 'a') a -= 'a' - 'A';
+            if (a >= 'A') a -= ('A' - 10);
+            else a -= '0';
+            if (b >= 'a') b -= 'a' - 'A';
+            if (b >= 'A') b -= ('A' - 10);
+            else b -= '0';
+            *dst++ = 16 * a + b;
+            src += 3;
+        } else if (*src == '+') {
+            *dst++ = ' ';
+            src++;
+        } else {
+            *dst++ = *src++;
+        }
+    }
+    *dst = '\0';
+}
+
 // -----------------------------------------------------------------------------
 // 4. Command listener thread for close & dynamic regions
 // -----------------------------------------------------------------------------
@@ -411,7 +474,66 @@ static void* window_cmd_server(void* arg) {
                 write(client, resp, strlen(resp));
                 close(client);
                 close(server_fd);
+
+                post_window_action(WINDOW_ACTION_CLOSE);
+                kill(getpid(), SIGTERM);
+                usleep(500000);
                 _exit(0);
+            } else if (strstr(buf, "/get_config")) {
+                char cfg_path[1024];
+                get_adw_config_path(cfg_path, sizeof(cfg_path));
+                char body[4096] = "{}";
+                FILE* f = fopen(cfg_path, "r");
+                if (f) {
+                    size_t n = fread(body, 1, sizeof(body) - 1, f);
+                    body[n] = '\0';
+                    fclose(f);
+                }
+                char resp[8192];
+                snprintf(resp, sizeof(resp),
+                    "HTTP/1.1 200 OK\r\n"
+                    "Content-Type: application/json\r\n"
+                    "Access-Control-Allow-Origin: *\r\n"
+                    "Content-Length: %zu\r\n\r\n%s",
+                    strlen(body), body);
+                write(client, resp, strlen(resp));
+                close(client);
+                continue;
+            } else if (strstr(buf, "/save_config")) {
+                char cfg_path[1024];
+                get_adw_config_path(cfg_path, sizeof(cfg_path));
+                char data_buf[4096] = {0};
+
+                char* q = strstr(buf, "/save_config?data=");
+                if (q) {
+                    char* raw_data = q + 18;
+                    char* end = strchr(raw_data, ' ');
+                    if (end) *end = '\0';
+                    urldecode(data_buf, raw_data);
+                } else {
+                    char* body_start = strstr(buf, "\r\n\r\n");
+                    if (body_start) {
+                        strncpy(data_buf, body_start + 4, sizeof(data_buf) - 1);
+                    }
+                }
+
+                if (data_buf[0] != '\0') {
+                    char tmp_path[1050];
+                    snprintf(tmp_path, sizeof(tmp_path), "%s.tmp", cfg_path);
+                    FILE* f = fopen(tmp_path, "w");
+                    if (f) {
+                        fputs(data_buf, f);
+                        fflush(f);
+                        fsync(fileno(f));
+                        fclose(f);
+                        rename(tmp_path, cfg_path);
+                    }
+                }
+
+                const char* resp = "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\nContent-Type: application/json\r\nContent-Length: 15\r\n\r\n{\"status\":\"ok\"}";
+                write(client, resp, strlen(resp));
+                close(client);
+                continue;
             } else if (strstr(buf, "/minimize")) {
                 post_window_action(WINDOW_ACTION_MINIMIZE);
                 const char* resp = "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: 2\r\n\r\nOK";

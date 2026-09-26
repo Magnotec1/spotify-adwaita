@@ -14,33 +14,54 @@
 
     const SETTINGS_DEFINITIONS = [
         {
-            id: 'expandLibraryOnStartup',
-            type: 'switch',
-            label: 'Open library in expanded mode on startup',
-            description: 'Automatically open and expand the Your Library view when launching Spotify',
-            default: false,
-            onChange: (val) => {
-                if (val) expandLibrary();
-            }
-        },
-        {
             id: 'startupPage',
             type: 'select',
             label: 'Startup primary page',
-            description: 'Select the default page displayed when Spotify opens',
-            default: 'default',
+            description: 'Select the default page or expanded view displayed when Spotify opens',
+            default: 'home',
             options: [
-                { value: 'default', label: 'Default (Home)' },
+                { value: 'home', label: 'Default (Home)' },
+                { value: 'search', label: 'Search / Browse' },
                 { value: 'library', label: 'Your Library (Expanded)' },
-                { value: 'search', label: 'Search' }
-            ]
+                { value: 'now-playing', label: 'Now Playing (Expanded)' }
+            ],
+            onChange: (val) => {
+                if (val === 'search') {
+                    collapseNowPlaying();
+                    document.querySelector('[data-testid="browse-button"], [data-testid="search-icon"], [data-testid="search-input"]')?.click();
+                } else if (val === 'home') {
+                    collapseNowPlaying();
+                    document.querySelector('[data-testid="home-button"]')?.click();
+                } else if (val === 'library') {
+                    collapseNowPlaying();
+                    expandLibrary();
+                } else if (val === 'now-playing') {
+                    expandNowPlaying();
+                }
+            }
         },
         {
             id: 'downscaleImages',
             type: 'switch',
             label: 'Intelligent CDN image downscaling',
             description: 'Downscale 640px cover art to 300px to reduce VRAM consumption and eliminate scroll lag',
-            default: true
+            default: true,
+            onChange: (val) => {
+                if (val) {
+                    scanAndDownscaleDom();
+                } else {
+                    const imgs = document.querySelectorAll('img');
+                    for (let i = 0; i < imgs.length; i++) {
+                        const img = imgs[i];
+                        if (img.src && img.src.includes('ab67616d00001e02')) {
+                            img.src = img.src.replace('ab67616d00001e02', 'ab67616d0000b273');
+                        }
+                        if (img.src && img.src.includes('ab67616100005174')) {
+                            img.src = img.src.replace('ab67616100005174', 'ab6761610000e5eb');
+                        }
+                    }
+                }
+            }
         },
         {
             id: 'blockTelemetry',
@@ -54,7 +75,18 @@
             type: 'switch',
             label: 'Throttle power when window is hidden',
             description: 'Pause background canvas videos and freeze CSS animations when the Spotify window is hidden or minimized',
-            default: true
+            default: true,
+            onChange: (val) => {
+                if (!val) {
+                    document.body.classList.remove('spotify-adw-hidden');
+                    document.querySelectorAll('video').forEach(v => {
+                        if (v._adwWasPlaying) {
+                            delete v._adwWasPlaying;
+                            try { v.play(); } catch (_) {}
+                        }
+                    });
+                }
+            }
         }
     ];
 
@@ -69,7 +101,13 @@
         try {
             const raw = localStorage.getItem(CONFIG_KEY);
             if (raw) {
-                return Object.assign({}, defaults, JSON.parse(raw));
+                const parsed = JSON.parse(raw);
+                if (parsed.startupPage === 'default') parsed.startupPage = 'home';
+                if (parsed.expandLibraryOnStartup && (!parsed.startupPage || parsed.startupPage === 'home')) {
+                    parsed.startupPage = 'library';
+                }
+                delete parsed.expandLibraryOnStartup;
+                return Object.assign({}, defaults, parsed);
             }
         } catch (_) {}
         return Object.assign({}, defaults);
@@ -77,17 +115,60 @@
 
     let config = loadConfig();
 
+    function syncSettingsInputs() {
+        const section = document.getElementById('adw-settings-section');
+        if (!section) return;
+        for (const s of SETTINGS_DEFINITIONS) {
+            const el = section.querySelector(`#adw-setting-${s.id}`);
+            if (!el) continue;
+            if (s.type === 'switch') {
+                el.checked = !!config[s.id];
+            } else if (s.type === 'select') {
+                el.value = config[s.id] || s.default;
+            }
+        }
+    }
+
+    async function syncConfigFromDisk() {
+        try {
+            const resp = await fetch('http://127.0.0.1:45454/get_config');
+            if (resp.ok) {
+                const diskConfig = await resp.json();
+                if (diskConfig && typeof diskConfig === 'object' && Object.keys(diskConfig).length > 0) {
+                    if (diskConfig.startupPage === 'default') diskConfig.startupPage = 'home';
+                    if (diskConfig.expandLibraryOnStartup && (!diskConfig.startupPage || diskConfig.startupPage === 'home')) {
+                        diskConfig.startupPage = 'library';
+                    }
+                    delete diskConfig.expandLibraryOnStartup;
+                    config = Object.assign({}, config, diskConfig);
+                    try {
+                        localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+                    } catch (_) {}
+                    syncSettingsInputs();
+                }
+            }
+        } catch (_) {}
+    }
+
     function saveConfig(patch) {
         config = Object.assign({}, config, patch);
+        const jsonStr = JSON.stringify(config);
         try {
-            localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+            localStorage.setItem(CONFIG_KEY, jsonStr);
         } catch (_) {}
+        // Persist immediately to disk via preload server
+        fetch(`http://127.0.0.1:45454/save_config?data=${encodeURIComponent(jsonStr)}`, { mode: 'no-cors' }).catch(() => {});
+        syncSettingsInputs();
     }
 
     window.__spotifyAdwaita = {
         getConfig: () => Object.assign({}, config),
         saveConfig,
+        syncConfigFromDisk,
         expandLibrary: () => expandLibrary(),
+        collapseLibrary: () => collapseLibrary(),
+        expandNowPlaying: () => expandNowPlaying(),
+        collapseNowPlaying: () => collapseNowPlaying(),
         definitions: SETTINGS_DEFINITIONS
     };
 
@@ -210,6 +291,7 @@
     };
 
     function scanAndDownscaleDom() {
+        if (!config.downscaleImages) return;
         const imgs = document.querySelectorAll('img');
         for (let i = 0; i < imgs.length; i++) {
             const img = imgs[i];
@@ -496,32 +578,33 @@
     // -------------------------------------------------------------
     // 7. Library Mode & Startup Expansion
     // -------------------------------------------------------------
-    function isLibraryAlreadyExpanded() {
-        return !!Array.from(document.querySelectorAll('button')).find(b => {
+    function isLibraryExpanded() {
+        const minimizeBtn = Array.from(document.querySelectorAll('button')).find(b => {
             const aria = (b.getAttribute('aria-label') || '').toLowerCase();
-            return aria.includes('minimize your library') ||
-                   aria.includes('reduce your library') ||
-                   b.querySelector('svg path[d*="M14.53 1.47"]');
+            return aria.includes('minimize your library') || aria.includes('reduce your library');
         });
+        if (minimizeBtn) return true;
+        const nav = document.querySelector('nav, [aria-label="Your Library"], [data-testid="your-library-x"]');
+        if (nav && nav.getBoundingClientRect().width > 500) return true;
+        return false;
     }
 
     function expandLibrary() {
-        if (isLibraryAlreadyExpanded()) return true;
+        if (isLibraryExpanded()) return true;
 
-        // 1. If library is completely collapsed to icons, open it first
-        const openBtn = Array.from(document.querySelectorAll('button')).find(b => {
-            const aria = (b.getAttribute('aria-label') || '').toLowerCase();
-            return aria.includes('open your library') || b.querySelector('svg path[d*="M1 0a1 1 0 0 0-1 1v14"]');
-        });
-        if (openBtn) {
-            openBtn.click();
+        const nav = document.querySelector('nav, [aria-label="Your Library"], [data-testid="your-library-x"]');
+        if (nav && nav.getBoundingClientRect().width < 120) {
+            const openBtn = Array.from(nav.querySelectorAll('button')).find(b => {
+                const aria = (b.getAttribute('aria-label') || '').toLowerCase();
+                return aria.includes('expand your library') || aria.includes('open your library');
+            });
+            if (openBtn) openBtn.click();
         }
 
-        // 2. Click expand button
         const expandBtn = Array.from(document.querySelectorAll('button')).find(b => {
             const aria = (b.getAttribute('aria-label') || '').toLowerCase();
-            return (aria.includes('expand your library') || aria.includes('enlarge your library')) ||
-                   (b.querySelector('svg path[d*="M6.53 9.47"]') && b.closest('.ctNLVWve8CosEgh2, nav, [aria-label="Your Library"], [data-testid="your-library-x"]'));
+            return (aria === 'expand your library' || aria === 'enlarge your library' || aria.includes('expand your library')) &&
+                   b.closest('nav, [aria-label="Your Library"], [data-testid="your-library-x"]');
         });
 
         if (expandBtn) {
@@ -532,36 +615,102 @@
         return false;
     }
 
+    function collapseLibrary() {
+        const minimizeBtn = Array.from(document.querySelectorAll('button')).find(b => {
+            const aria = (b.getAttribute('aria-label') || '').toLowerCase();
+            return aria.includes('minimize your library') || aria.includes('reduce your library');
+        });
+        if (minimizeBtn) {
+            minimizeBtn.click();
+            return true;
+        }
+        return false;
+    }
+
+    function isNowPlayingExpanded() {
+        const minimizeBtn = Array.from(document.querySelectorAll('button')).find(b => {
+            const aria = (b.getAttribute('aria-label') || '').toLowerCase();
+            return aria.includes('minimize now playing') || aria.includes('exit full screen');
+        });
+        if (minimizeBtn) return true;
+        return !!document.querySelector('main .NowPlayingView, [data-testid="now-playing-view"]');
+    }
+
+    function expandNowPlaying() {
+        if (isNowPlayingExpanded()) return true;
+
+        // 1. If cinema mode expand button is visible (e.g. sidebar is already open), click it
+        const expandBtn = Array.from(document.querySelectorAll('button')).find(b => {
+            const aria = (b.getAttribute('aria-label') || '').toLowerCase();
+            return aria.includes('expand now playing');
+        });
+        if (expandBtn) {
+            expandBtn.click();
+            return true;
+        }
+
+        // 2. Otherwise open Now Playing view from bottom bar, then trigger expand
+        const npvBtn = document.querySelector('[data-testid="control-button-npv"], button[aria-label*="Now playing view"], [data-testid="cover-art-button"]');
+        if (npvBtn) {
+            npvBtn.click();
+            setTimeout(() => {
+                const btn = Array.from(document.querySelectorAll('button')).find(b => {
+                    const aria = (b.getAttribute('aria-label') || '').toLowerCase();
+                    return aria.includes('expand now playing');
+                });
+                if (btn) btn.click();
+            }, 250);
+            return true;
+        }
+
+        return false;
+    }
+
+    function collapseNowPlaying() {
+        const minimizeBtn = Array.from(document.querySelectorAll('button')).find(b => {
+            const aria = (b.getAttribute('aria-label') || '').toLowerCase();
+            return aria.includes('minimize now playing') || aria.includes('exit full screen');
+        });
+        if (minimizeBtn) {
+            minimizeBtn.click();
+            return true;
+        }
+        return false;
+    }
+
     let startupPreferencesApplied = false;
 
     function applyStartupPreferences() {
         if (startupPreferencesApplied) return;
 
-        const shouldExpand = config.expandLibraryOnStartup || config.startupPage === 'library';
-
-        if (shouldExpand) {
+        if (config.startupPage === 'library') {
             let attempts = 0;
             const expandTimer = setInterval(() => {
                 attempts++;
-                if (expandLibrary() || attempts >= 25) {
+                if (expandLibrary() || attempts >= 30) {
                     clearInterval(expandTimer);
                 }
-            }, 250);
-        }
-
-        if (config.startupPage === 'search') {
+            }, 200);
+        } else if (config.startupPage === 'now-playing') {
+            let npAttempts = 0;
+            const npTimer = setInterval(() => {
+                npAttempts++;
+                if (expandNowPlaying() || npAttempts >= 30) {
+                    clearInterval(npTimer);
+                }
+            }, 200);
+        } else if (config.startupPage === 'search') {
             let searchAttempts = 0;
             const searchTimer = setInterval(() => {
                 searchAttempts++;
-                const searchBtn = document.querySelector('[data-testid="search-icon"], [aria-label="Search"]')?.closest('button') ||
-                                  document.querySelector('[data-testid="search-icon"]');
-                if (searchBtn) {
-                    searchBtn.click();
+                const searchTarget = document.querySelector('[data-testid="browse-button"], [data-testid="search-icon"], [data-testid="search-input"], [aria-label="Search"], [aria-label="Browse"]');
+                if (searchTarget) {
+                    searchTarget.click();
                     clearInterval(searchTimer);
-                } else if (searchAttempts >= 20) {
+                } else if (searchAttempts >= 30) {
                     clearInterval(searchTimer);
                 }
-            }, 250);
+            }, 200);
         } else if (config.startupPage === 'home') {
             let homeAttempts = 0;
             const homeTimer = setInterval(() => {
@@ -570,10 +719,10 @@
                 if (homeBtn) {
                     homeBtn.click();
                     clearInterval(homeTimer);
-                } else if (homeAttempts >= 20) {
+                } else if (homeAttempts >= 30) {
                     clearInterval(homeTimer);
                 }
-            }, 250);
+            }, 200);
         }
 
         startupPreferencesApplied = true;
@@ -585,7 +734,10 @@
     function checkAndInjectSettings() {
         const page = document.querySelector('[data-testid="settings-page"]');
         if (!page) return;
-        if (document.getElementById('adw-settings-section')) return;
+        if (document.getElementById('adw-settings-section')) {
+            syncSettingsInputs();
+            return;
+        }
 
         const section = document.createElement('div');
         section.id = 'adw-settings-section';
@@ -639,16 +791,18 @@
             if (!el) continue;
             if (s.type === 'switch') {
                 el.addEventListener('change', (e) => {
-                    saveConfig({ [s.id]: e.target.checked });
+                    const checked = e.target.checked;
+                    saveConfig({ [s.id]: checked });
                     if (typeof s.onChange === 'function') {
-                        s.onChange(e.target.checked);
+                        s.onChange(checked);
                     }
                 });
             } else if (s.type === 'select') {
                 el.addEventListener('change', (e) => {
-                    saveConfig({ [s.id]: e.target.value });
+                    const val = e.target.value;
+                    saveConfig({ [s.id]: val });
                     if (typeof s.onChange === 'function') {
-                        s.onChange(e.target.value);
+                        s.onChange(val);
                     }
                 });
             }
@@ -691,6 +845,7 @@
     }
 
     function init() {
+        syncConfigFromDisk();
         setupWindowControls();
         updateHeaderOffsets();
         syncDraggableRegions();
