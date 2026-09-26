@@ -3,7 +3,13 @@
  * Harmonizes Spotify with GNOME 47 dark mode (#222226 background, #333337 cards)
  */
 
-:root {
+:root,
+html,
+body,
+.encore-dark-theme,
+.encore-dark-theme .encore-base-set,
+.encore-set,
+[class*="encore-"] {
     /* Dynamic System Font */
     --adw-font: __SYSTEM_FONT__;
     --encore-body-font-stack: var(--adw-font) !important;
@@ -13,7 +19,7 @@
 
     /* Libadwaita Dark Palette */
     --adw-window-bg: #222226;
-    --adw-view-bg: #1e1e20;
+    --adw-view-bg: #222226;
     --adw-headerbar-bg: #26262a;
     --adw-card-bg: #333337;
     --adw-card-hover: #3e3e44;
@@ -38,6 +44,7 @@
     --background-elevated-base: var(--adw-card-bg) !important;
     --background-elevated-highlight: var(--adw-card-hover) !important;
     --background-elevated-press: var(--adw-card-active) !important;
+    --color-to: var(--adw-window-bg) !important;
     --text-base: var(--adw-text) !important;
     --text-subdued: var(--adw-text-secondary) !important;
     --essential-base: var(--adw-accent) !important;
@@ -55,19 +62,34 @@ html, body {
     background-color: var(--adw-window-bg) !important;
 }
 
-/* 2. Master Layout Containers Background Override (#000000 -> #222226) */
+/* 2. Master Layout, Main Views, Home, Library, & Viewports (#000000 / #121212 -> #222226) */
 .iRGr6yO6lPcAKUoT,
 .qPaMr9Jzt0_Doy3C,
 .vEHGULrufZMHBNrp,
 .YdGOYWQYr6kqh7KU,
-header.header,
-.header,
+.B0fBZOXNHNc2YVYO,
+.F0DeHdUi7cNLlJ6D,
+.main-view-container,
+.Root__main-view,
 .Root__top-container,
 .Root__globalNav,
 .Root__nav-bar,
 .Root__now-playing-bar,
+.a66iQ41cA_IFrimo,
+.AwFAMwwvq1swp1Wm,
+.footer,
+.footer--full,
+header.header,
+.header,
 #main,
-.Root {
+.Root,
+main,
+section,
+[data-testid="main-view"],
+[data-testid="your-library-x"],
+[data-testid="home-page"],
+.os-viewport,
+.os-content {
     background-color: var(--adw-window-bg) !important;
 }
 
@@ -76,21 +98,51 @@ header.header,
     outline-color: var(--adw-window-bg) !important;
 }
 
-/* 3. Main Views & Navigation Styling */
-.main-view-container,
-.Root__main-view {
-    background-color: var(--adw-view-bg) !important;
-    border-radius: var(--adw-radius-medium) !important;
+/* 3. Gradient overlays fading to #222226 */
+.w_pH9jsYnqQikJRe,
+.CR9Q7cUHXSISBq2O {
+    background: linear-gradient(rgba(34, 34, 38, 0), var(--adw-window-bg)) !important;
 }
 
-/* 4. Dialogs & Modals */
+.Q7ciR0kAsukiCprc {
+    background-image: linear-gradient(rgba(0, 0, 0, 0.2) 0%, var(--adw-window-bg) 100%), var(--background-noise) !important;
+}
+
+.bHqdRdxo4vtOizQq:after {
+    background-color: var(--adw-window-bg) !important;
+    background-image: linear-gradient(rgba(0, 0, 0, 0.2) 0, var(--adw-window-bg) 100%) !important;
+}
+
+/* 4. Cards & Elevated Containers (#333337) */
+._kx6PbIX2n8MJzEV,
+.iGrz9_1aUhECnc_S,
+.Re_OXhMIUkvAxhof,
 .b6J3HYAs6u045OoG,
 .p5LJBmlswjcRT458,
 .iz1mMhb4xK8F9WhD,
-.lI2x4vaRwhQf7nCI {
+.lI2x4vaRwhQf7nCI,
+.ceHJbDWktNYBqkcL,
+.clOQWHFqnYAn76bm,
+.GGsWnTKhHwMpT9lD,
+.byg_Psq6ersB6pZZ,
+.Ro8Wai2k3gdBSfGf,
+.VCPgr3ThFqEkbXSK .o78onbRrOL0X0j_g,
+.NJh1B8rnlSUlK7sY,
+.e-10451-card,
+[data-testid="card-click-handler"],
+[data-testid="card-container"],
+.main-card-card {
     background-color: var(--adw-card-bg) !important;
     border-radius: var(--adw-radius-large) !important;
-    border: 1px solid var(--adw-border) !important;
+}
+
+/* Card hover */
+._kx6PbIX2n8MJzEV:hover,
+.iGrz9_1aUhECnc_S:hover,
+.Re_OXhMIUkvAxhof:hover,
+[data-testid="card-click-handler"]:hover,
+.main-card-card:hover {
+    background-color: var(--adw-card-hover) !important;
 }
 
 /* 5. Friend Activity (Buddy Feed) Polish */
