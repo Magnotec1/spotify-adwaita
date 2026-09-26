@@ -1,7 +1,7 @@
 /**
  * Spotify Adwaita - GNOME Libadwaita Theme & Palette Overrides
  * Harmonizes Spotify with GNOME 47 dark mode
- * Window/Gaps: #222226 | Main Panels (Home, Library, Now Playing): #333337
+ * Window/Gaps & Bottom Play Bar: #222226 | Main Panels (Home, Library, Now Playing View): #333337
  */
 
 :root,
@@ -19,8 +19,8 @@ body,
     --encore-text-font-family: var(--adw-font) !important;
 
     /* Libadwaita Dark Palette */
-    --adw-window-bg: #222226;       /* Far window background & panel gaps */
-    --adw-panel-bg: #333337;        /* Entire Home page, Library bar, Now Playing panel */
+    --adw-window-bg: #222226;       /* Far window background, gaps, & bottom play bar */
+    --adw-panel-bg: #333337;        /* Entire Home page, Library bar, Now Playing view */
     --adw-card-bg: #3d3d42;         /* Elevated cards / callouts */
     --adw-card-hover: #48484e;
     --adw-card-active: #52525a;
@@ -45,6 +45,8 @@ body,
     --background-elevated-highlight: var(--adw-card-hover) !important;
     --background-elevated-press: var(--adw-card-active) !important;
     --color-to: var(--adw-panel-bg) !important;
+    --carousel-start-chevron-gradient: var(--adw-panel-bg) !important;
+    --carousel-end-chevron-gradient: var(--adw-panel-bg) !important;
     --text-base: var(--adw-text) !important;
     --text-subdued: var(--adw-text-secondary) !important;
     --essential-base: var(--adw-accent) !important;
@@ -69,7 +71,18 @@ header.header,
     background-color: var(--adw-window-bg) !important;
 }
 
-/* 2. The 3 Main Inner Panels (Home Page, Library Bar, Now Playing Panel) -> #333337 */
+/* 2. Bottom Playback Controls Bar (stays far window background #222226) */
+.YdGOYWQYr6kqh7KU,
+footer,
+.footer,
+.footer--full,
+.Root__now-playing-bar {
+    background-color: var(--adw-window-bg) !important;
+    border-radius: 0 !important;
+    border-top: 1px solid var(--adw-border) !important;
+}
+
+/* 3. The Main Inner Panels (Home Page, Library Bar, Now Playing View) -> #333337 */
 
 /* A. Left Sidebar / Library Bar */
 .vEHGULrufZMHBNrp,
@@ -96,18 +109,55 @@ section,
     border-radius: var(--adw-radius-medium) !important;
 }
 
-/* C. Now Playing Panel / Bottom Bar & Right Panel */
-.YdGOYWQYr6kqh7KU,
+/* C. Now Playing View (Right Side Panel) */
 .LtqMCWXd5Nkemkym,
 aside[aria-label="Now playing view"],
-.Root__now-playing-bar,
-.footer,
-.footer--full {
+.q_V1SHcOcAUk9Pa8,
+.vFJoEglidP04w4hC,
+[view-transition-name="cinema-hero-mode-background"] {
     background-color: var(--adw-panel-bg) !important;
+    background-image: none !important;
     border-radius: var(--adw-radius-medium) !important;
 }
 
-/* 3. Gradient Overlays fading smoothly to #333337 */
+/* Neutralize ambient backdrop gradients inside Now Playing View */
+.LtqMCWXd5Nkemkym .TLo_mZ7hWAaT3fsA,
+.TLo_mZ7hWAaT3fsA {
+    display: none !important;
+    background-image: none !important;
+}
+
+.LtqMCWXd5Nkemkym * {
+    --cinema-mode-bg-color-from: var(--adw-panel-bg) !important;
+    --cinema-mode-bg-color-to: var(--adw-panel-bg) !important;
+    --cinema-mode-bg-image: none !important;
+}
+
+/* 4. Carousel Row Edge Gradients (Neutralize left/right dark gradient masks) */
+.CsidsUzBet0_Mp5i:before,
+[dir=rtl] .CsidsUzBet0_Mp5i:before {
+    background: linear-gradient(90deg, var(--adw-panel-bg) 0%, rgba(51, 51, 55, 0) 100%) !important;
+}
+
+.CsidsUzBet0_Mp5i:after,
+[dir=rtl] .CsidsUzBet0_Mp5i:after {
+    background: linear-gradient(-90deg, var(--adw-panel-bg) 0%, rgba(51, 51, 55, 0) 100%) !important;
+}
+
+/* 5. Sticky Top Bar in Home Panel When Scrolled */
+.x_HLN829yDsvJDgl,
+.kRkvH3JcI5sYgH6J,
+.header-wrapper--sticky .header,
+.g3QSV3tq49ScV2jX {
+    background-color: var(--adw-panel-bg) !important;
+}
+
+.kRkvH3JcI5sYgH6J.fzMaM8folMIckYG2:after {
+    display: none !important;
+    background-color: transparent !important;
+}
+
+/* 6. Top Entity Gradient Overlays fading to #333337 */
 .w_pH9jsYnqQikJRe,
 .CR9Q7cUHXSISBq2O {
     background: linear-gradient(rgba(51, 51, 55, 0), var(--adw-panel-bg)) !important;
@@ -122,7 +172,7 @@ aside[aria-label="Now playing view"],
     background-image: linear-gradient(rgba(0, 0, 0, 0.2) 0, var(--adw-panel-bg) 100%) !important;
 }
 
-/* 4. Item Cards inside Views (Transparent on Home Page, with subtle hover) */
+/* 7. Item Cards inside Views (Transparent on Home Page, with subtle hover) */
 .e-10451-card,
 [data-testid="card-click-handler"],
 [data-testid="card-container"],
@@ -169,7 +219,7 @@ aside[aria-label="Now playing view"],
     border: 1px solid var(--adw-border) !important;
 }
 
-/* 5. Fix black hover line & resizers when now playing panel is hidden */
+/* 8. Fix black hover line & resizers when now playing panel is hidden */
 [data-right-sidebar-hidden="true"] .LayoutResizer__resize-bar,
 [data-right-sidebar-hidden="true"] .LayoutResizer__inline-end,
 [data-right-sidebar-hidden="true"] .LayoutResizer__inline-start,
@@ -220,7 +270,7 @@ aside[aria-label="Now playing view"],
     background-color: var(--adw-panel-bg) !important;
 }
 
-/* 6. Friend Activity (Buddy Feed) Polish */
+/* 9. Friend Activity (Buddy Feed) Polish */
 .xsEirB_t11cLPyJj {
     border-radius: var(--adw-radius-medium) !important;
     padding: 6px 10px !important;
@@ -242,7 +292,7 @@ aside[aria-label="Now playing view"],
     box-shadow: 0 0 0 2px var(--adw-panel-bg) !important;
 }
 
-/* 7. Minimalist Adwaita Scrollbars */
+/* 10. Minimalist Adwaita Scrollbars */
 ::-webkit-scrollbar {
     width: 8px !important;
     height: 8px !important;
