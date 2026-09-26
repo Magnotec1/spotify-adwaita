@@ -7,6 +7,7 @@ use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use std::process::Command;
 
+const CSD_CSS: &str = include_str!("../assets/csd.css");
 const ADWAITA_CSS: &str = include_str!("../assets/adwaita.css");
 const ADWAITA_JS: &str = include_str!("../assets/adwaita.js");
 
@@ -20,11 +21,23 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Apply Libadwaita theme, fix Wayland blue borders, and inject performance patches
+    /// Apply borderless Wayland fix, native window drag, debloat, and optionally Libadwaita theme
     Apply {
         /// Automatically restart Spotify after applying changes
         #[arg(short, long)]
         restart: bool,
+
+        /// Enable Libadwaita color theming (replaces #000000 with GNOME's #222226)
+        #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+        theme: Option<bool>,
+
+        /// Explicitly disable Libadwaita color theming (preserve Spotify's vanilla black colors)
+        #[arg(long, conflicts_with = "theme")]
+        no_theme: bool,
+
+        /// Set interface font family (defaults to detected GNOME system font)
+        #[arg(long)]
+        font: Option<String>,
     },
     /// Restore original Spotify UI and remove Wayland flags
     Restore {
@@ -46,10 +59,19 @@ fn kill_spotify() {
 
 fn launch_spotify() -> Result<()> {
     println!("Launching Spotify via Flatpak...");
-    Command::new("flatpak")
-        .args(["run", "com.spotify.Client"])
-        .spawn()
-        .context("Failed to launch Spotify via Flatpak")?;
+    let status = Command::new("systemd-run")
+        .args(["--user", "flatpak", "run", "com.spotify.Client"])
+        .status();
+
+    if status.is_err() || !status.as_ref().unwrap().success() {
+        Command::new("flatpak")
+            .args(["run", "com.spotify.Client"])
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .context("Failed to launch Spotify via Flatpak")?;
+    }
     Ok(())
 }
 
@@ -66,8 +88,20 @@ fn main() -> Result<()> {
             println!("xpui.spa path:     {:?}", install.xpui_spa_path);
             println!("Config directory:  {:?}", install.config_dir);
 
-            let patched = patcher::is_patched(&install.xpui_spa_path).unwrap_or(false);
-            println!("UI Patched:        {}", if patched { "YES (Libadwaita injected)" } else { "NO (Vanilla)" });
+            let sys_font = detector::get_gnome_font();
+            println!("System Font:       {}", sys_font);
+
+            let patch_status = patcher::get_patch_status(&install.xpui_spa_path)
+                .unwrap_or(patcher::PatchStatus { is_patched: false, has_theme: false });
+            if patch_status.is_patched {
+                if patch_status.has_theme {
+                    println!("UI Patched:        YES (Libadwaita Theme active, #222226 background, #333337 cards)");
+                } else {
+                    println!("UI Patched:        YES (Vanilla Theme active, #000000 background)");
+                }
+            } else {
+                println!("UI Patched:        NO (Unpatched)");
+            }
 
             let bak = patcher::backup_path(&install.xpui_spa_path);
             println!("UI Backup exists:  {}", if bak.exists() { "YES" } else { "NO" });
@@ -91,8 +125,29 @@ fn main() -> Result<()> {
                 }
             }
         }
-        Commands::Apply { restart } => {
+        Commands::Apply {
+            restart,
+            theme,
+            no_theme,
+            font,
+        } => {
+            let enable_theme = match (theme, no_theme) {
+                (Some(false), _) | (_, true) => false,
+                (Some(true), _) => true,
+                (None, false) => false,
+            };
+
+            let detected_font = detector::get_gnome_font();
+            let selected_font = font.unwrap_or(detected_font);
+
             println!("Applying Spotify Adwaita...");
+            if enable_theme {
+                println!("  • Libadwaita color theming: ENABLED (replacing #000000 with #222226, cards #333337)");
+                println!("  • Interface font:          \"{}\" (GNOME system font)", selected_font);
+            } else {
+                println!("  • Libadwaita color theming: DISABLED (preserving vanilla Spotify colors)");
+                println!("    (Tip: Use `--theme` to enable GNOME #222226 dark theming)");
+            }
 
             // 1. Configure Wayland flags (native Ozone + hardware GPU acceleration)
             flags::configure_flags(&install.config_dir)?;
@@ -109,8 +164,21 @@ fn main() -> Result<()> {
             println!("✓ Detected GNOME button-layout: {}", button_layout);
 
             let js_with_layout = format!("window.GNOME_BUTTON_LAYOUT = {:?};\n{}", button_layout, ADWAITA_JS);
-            patcher::patch(&install.xpui_spa_path, ADWAITA_CSS, &js_with_layout)?;
-            println!("✓ Patched xpui.spa with Libadwaita styles, CSD header, and telemetry debloat");
+            let font_stack = format!("\"{}\", Cantarell, -apple-system, system-ui, sans-serif", selected_font);
+            let theme_css = ADWAITA_CSS.replace("__SYSTEM_FONT__", &font_stack);
+
+            let css_to_inject = if enable_theme {
+                format!("{}\n\n{}", CSD_CSS, theme_css)
+            } else {
+                CSD_CSS.to_string()
+            };
+
+            patcher::patch(&install.xpui_spa_path, &css_to_inject, &js_with_layout)?;
+            if enable_theme {
+                println!("✓ Patched xpui.spa with Libadwaita theme (#222226), #333337 cards, \"{}\" font, and CSD controls", selected_font);
+            } else {
+                println!("✓ Patched xpui.spa with Wayland CSD controls and telemetry debloat (vanilla theme)");
+            }
 
             println!("\n🎉 Successfully applied Spotify Adwaita!");
 

@@ -9,22 +9,45 @@ pub fn backup_path(xpui_path: &Path) -> PathBuf {
     xpui_path.with_extension("spa.adw.bak")
 }
 
-pub fn is_patched(xpui_path: &Path) -> Result<bool> {
+#[derive(Debug, Clone, Copy)]
+pub struct PatchStatus {
+    pub is_patched: bool,
+    pub has_theme: bool,
+}
+
+pub fn get_patch_status(xpui_path: &Path) -> Result<PatchStatus> {
     if !xpui_path.exists() {
-        return Ok(false);
+        return Ok(PatchStatus {
+            is_patched: false,
+            has_theme: false,
+        });
     }
 
     let file = File::open(xpui_path)?;
     let mut archive = ZipArchive::new(file)?;
 
     for i in 0..archive.len() {
-        let entry = archive.by_index(i)?;
+        let mut entry = archive.by_index(i)?;
         if entry.name() == "adwaita.css" {
-            return Ok(true);
+            let mut css = String::new();
+            let _ = entry.read_to_string(&mut css);
+            let has_theme = css.contains("--adw-window-bg");
+            return Ok(PatchStatus {
+                is_patched: true,
+                has_theme,
+            });
         }
     }
 
-    Ok(false)
+    Ok(PatchStatus {
+        is_patched: false,
+        has_theme: false,
+    })
+}
+
+#[allow(dead_code)]
+pub fn is_patched(xpui_path: &Path) -> Result<bool> {
+    get_patch_status(xpui_path).map(|s| s.is_patched)
 }
 
 pub fn backup(xpui_path: &Path) -> Result<()> {

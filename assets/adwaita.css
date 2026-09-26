@@ -1,15 +1,23 @@
 /**
- * Spotify Adwaita - GNOME Libadwaita Theme & Wayland Borderless Styling
+ * Spotify Adwaita - GNOME Libadwaita Theme & Palette Overrides
+ * Harmonizes Spotify with GNOME 47 dark mode (#222226 background, #333337 cards)
  */
 
 :root {
+    /* Dynamic System Font */
+    --adw-font: __SYSTEM_FONT__;
+    --encore-body-font-stack: var(--adw-font) !important;
+    --encore-title-font-stack: var(--adw-font) !important;
+    --encore-variable-font-stack: var(--adw-font) !important;
+    --encore-text-font-family: var(--adw-font) !important;
+
     /* Libadwaita Dark Palette */
-    --adw-window-bg: #242424;
-    --adw-view-bg: #1e1e1e;
-    --adw-headerbar-bg: #303030;
-    --adw-card-bg: #303030;
-    --adw-card-hover: #3a3a3a;
-    --adw-card-active: #424242;
+    --adw-window-bg: #222226;
+    --adw-view-bg: #1e1e20;
+    --adw-headerbar-bg: #26262a;
+    --adw-card-bg: #333337;
+    --adw-card-hover: #3e3e44;
+    --adw-card-active: #4a4a50;
     --adw-accent: #3584e4;
     --adw-accent-hover: #1c71d8;
     --adw-accent-active: #15539e;
@@ -38,56 +46,34 @@
     --essential-negative: var(--adw-destructive) !important;
 }
 
-/* 1. Global Window Frame & Reset */
+/* 1. Global Window Frame & Font Override */
+html, body, button, input, select, textarea, [class*="encore"] {
+    font-family: var(--adw-font) !important;
+}
+
 html, body {
     background-color: var(--adw-window-bg) !important;
-    border: none !important;
-    outline: none !important;
-    box-shadow: none !important;
-    border-radius: 0 !important;
-    overflow: hidden !important;
-    font-family: Cantarell, "Inter", -apple-system, system-ui, sans-serif !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    height: 100vh !important;
-    width: 100vw !important;
 }
 
-/* 2. Seamless Window Controls (Integrated into Top-Right) */
-#adw-window-controls {
-    display: inline-flex;
-    align-items: center;
-    position: fixed;
-    top: 19px;
-    right: 14px;
-    z-index: 99999999;
-    gap: 8px;
-    -webkit-app-region: no-drag !important;
+/* 2. Master Layout Containers Background Override (#000000 -> #222226) */
+.iRGr6yO6lPcAKUoT,
+.qPaMr9Jzt0_Doy3C,
+.vEHGULrufZMHBNrp,
+.YdGOYWQYr6kqh7KU,
+header.header,
+.header,
+.Root__top-container,
+.Root__globalNav,
+.Root__nav-bar,
+.Root__now-playing-bar,
+#main,
+.Root {
+    background-color: var(--adw-window-bg) !important;
 }
 
-.adw-window-btn {
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    border: none;
-    background-color: rgba(255, 255, 255, 0.08);
-    color: var(--adw-text);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    padding: 0;
-    transition: background-color 0.18s cubic-bezier(0.25, 0.46, 0.45, 0.94), transform 0.1s ease;
-    -webkit-app-region: no-drag !important;
-}
-
-.adw-window-btn:hover {
-    background-color: rgba(255, 255, 255, 0.16) !important;
-}
-
-.adw-window-btn:active {
-    background-color: rgba(255, 255, 255, 0.28) !important;
-    transform: scale(0.92);
+/* Outline color override for cinema mode / viewports */
+.kUPoamhLb3kO_sjj {
+    outline-color: var(--adw-window-bg) !important;
 }
 
 /* 3. Main Views & Navigation Styling */
@@ -97,7 +83,17 @@ html, body {
     border-radius: var(--adw-radius-medium) !important;
 }
 
-/* 4. Friend Activity (Buddy Feed) Polish */
+/* 4. Dialogs & Modals */
+.b6J3HYAs6u045OoG,
+.p5LJBmlswjcRT458,
+.iz1mMhb4xK8F9WhD,
+.lI2x4vaRwhQf7nCI {
+    background-color: var(--adw-card-bg) !important;
+    border-radius: var(--adw-radius-large) !important;
+    border: 1px solid var(--adw-border) !important;
+}
+
+/* 5. Friend Activity (Buddy Feed) Polish */
 .xsEirB_t11cLPyJj {
     border-radius: var(--adw-radius-medium) !important;
     padding: 6px 10px !important;
@@ -119,7 +115,7 @@ html, body {
     box-shadow: 0 0 0 2px var(--adw-window-bg) !important;
 }
 
-/* 5. Minimalist Adwaita Scrollbars */
+/* 6. Minimalist Adwaita Scrollbars */
 ::-webkit-scrollbar {
     width: 8px !important;
     height: 8px !important;
@@ -136,10 +132,4 @@ html, body {
 
 ::-webkit-scrollbar-thumb:hover {
     background-color: rgba(255, 255, 255, 0.25) !important;
-}
-
-/* 6. Performance: Freeze visual updates when window is hidden */
-body.spotify-adw-hidden * {
-    animation-play-state: paused !important;
-    transition: none !important;
 }

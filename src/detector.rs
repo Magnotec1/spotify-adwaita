@@ -76,3 +76,26 @@ pub fn get_gnome_button_layout() -> String {
 
     "appmenu:close".to_string()
 }
+
+pub fn get_gnome_font() -> String {
+    let output = Command::new("gsettings")
+        .args(["get", "org.gnome.desktop.interface", "font-name"])
+        .output();
+
+    if let Ok(out) = output {
+        let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        let clean = s.trim_matches('\'').trim_matches('"');
+        // 'Google Sans 10.5' -> 'Google Sans'
+        if let Some(idx) = clean.rfind(' ') {
+            let (name, size) = clean.split_at(idx);
+            if size.trim().parse::<f32>().is_ok() {
+                return name.trim().to_string();
+            }
+        }
+        if !clean.is_empty() {
+            return clean.to_string();
+        }
+    }
+
+    "Cantarell".to_string()
+}
