@@ -1,0 +1,153 @@
+/**
+ * Spotify Adwaita - GNOME Libadwaita Theme & Wayland Borderless Styling
+ */
+
+:root {
+    /* Libadwaita Dark Palette */
+    --adw-window-bg: #242424;
+    --adw-view-bg: #1e1e1e;
+    --adw-headerbar-bg: #303030;
+    --adw-card-bg: #303030;
+    --adw-card-hover: #3a3a3a;
+    --adw-card-active: #424242;
+    --adw-accent: #3584e4;
+    --adw-accent-hover: #1c71d8;
+    --adw-accent-active: #15539e;
+    --adw-destructive: #e01b24;
+    --adw-destructive-hover: #c01c28;
+    --adw-text: #ffffff;
+    --adw-text-secondary: rgba(255, 255, 255, 0.7);
+    --adw-text-muted: rgba(255, 255, 255, 0.45);
+    --adw-border: rgba(255, 255, 255, 0.08);
+    --adw-radius-large: 12px;
+    --adw-radius-medium: 8px;
+    --adw-radius-small: 6px;
+
+    /* Spotify Theme Overrides */
+    --background-base: var(--adw-window-bg) !important;
+    --background-highlight: var(--adw-card-bg) !important;
+    --background-press: var(--adw-card-active) !important;
+    --background-elevated-base: var(--adw-card-bg) !important;
+    --background-elevated-highlight: var(--adw-card-hover) !important;
+    --background-elevated-press: var(--adw-card-active) !important;
+    --text-base: var(--adw-text) !important;
+    --text-subdued: var(--adw-text-secondary) !important;
+    --essential-base: var(--adw-accent) !important;
+    --essential-positive: #2ec27e !important;
+    --essential-warning: #e5a50a !important;
+    --essential-negative: var(--adw-destructive) !important;
+}
+
+/* 1. Global Window Frame & Reset */
+html, body {
+    background-color: var(--adw-window-bg) !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    border-radius: var(--adw-radius-large) !important;
+    overflow: hidden !important;
+    font-family: Cantarell, "Inter", -apple-system, system-ui, sans-serif !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: 100vh !important;
+    width: 100vw !important;
+}
+
+/* 2. Seamless Window Controls (Integrated into Top-Right) */
+#adw-window-controls {
+    display: inline-flex;
+    align-items: center;
+    position: fixed;
+    top: 18px;
+    right: 14px;
+    z-index: 99999999;
+    gap: 8px;
+    -webkit-app-region: no-drag !important;
+}
+
+.adw-window-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: none;
+    background-color: rgba(255, 255, 255, 0.08);
+    color: var(--adw-text);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    transition: background-color 0.12s ease;
+    -webkit-app-region: no-drag !important;
+}
+
+.adw-window-btn:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.adw-window-btn:active {
+    transform: scale(0.92);
+}
+
+.adw-window-btn.close:hover {
+    background-color: var(--adw-destructive) !important;
+    color: #ffffff !important;
+}
+
+.adw-window-btn.close:active {
+    background-color: var(--adw-destructive-hover) !important;
+}
+
+/* 3. Main Views & Navigation Styling */
+.main-view-container,
+.Root__main-view {
+    background-color: var(--adw-view-bg) !important;
+    border-radius: var(--adw-radius-medium) !important;
+}
+
+/* 4. Friend Activity (Buddy Feed) Polish */
+.xsEirB_t11cLPyJj {
+    border-radius: var(--adw-radius-medium) !important;
+    padding: 6px 10px !important;
+    margin: 2px 4px !important;
+    transition: background-color 0.15s ease !important;
+}
+
+.xsEirB_t11cLPyJj:hover {
+    background-color: var(--adw-card-hover) !important;
+}
+
+.dh732yRltYdmu3cX,
+.dh732yRltYdmu3cX img {
+    border-radius: 50% !important;
+}
+
+.MFrZh1qCrEB0Mim5 {
+    border-radius: 4px !important;
+    box-shadow: 0 0 0 2px var(--adw-window-bg) !important;
+}
+
+/* 5. Minimalist Adwaita Scrollbars */
+::-webkit-scrollbar {
+    width: 8px !important;
+    height: 8px !important;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent !important;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.15) !important;
+    border-radius: 4px !important;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.25) !important;
+}
+
+/* 6. Performance: Freeze visual updates when window is hidden */
+body.spotify-adw-hidden * {
+    animation-play-state: paused !important;
+    transition: none !important;
+}

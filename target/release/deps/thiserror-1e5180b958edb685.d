@@ -1,0 +1,14 @@
+/home/magnotec/Projects/desktop/spotify-adwaita/target/release/deps/thiserror-1e5180b958edb685.d: /home/magnotec/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/lib.rs /home/magnotec/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/aserror.rs /home/magnotec/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/display.rs /home/magnotec/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/var.rs /home/magnotec/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/private.rs /home/magnotec/Projects/desktop/spotify-adwaita/target/release/build/thiserror-d7c72ce7e72be0f5/out/private.rs
+
+/home/magnotec/Projects/desktop/spotify-adwaita/target/release/deps/libthiserror-1e5180b958edb685.rlib: /home/magnotec/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/lib.rs /home/magnotec/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/aserror.rs /home/magnotec/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/display.rs /home/magnotec/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/var.rs /home/magnotec/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/private.rs /home/magnotec/Projects/desktop/spotify-adwaita/target/release/build/thiserror-d7c72ce7e72be0f5/out/private.rs
+
+/home/magnotec/Projects/desktop/spotify-adwaita/target/release/deps/libthiserror-1e5180b958edb685.rmeta: /home/magnotec/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/lib.rs /home/magnotec/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/aserror.rs /home/magnotec/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/display.rs /home/magnotec/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/var.rs /home/magnotec/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/private.rs /home/magnotec/Projects/desktop/spotify-adwaita/target/release/build/thiserror-d7c72ce7e72be0f5/out/private.rs
+
+/home/magnotec/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/lib.rs:
+/home/magnotec/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/aserror.rs:
+/home/magnotec/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/display.rs:
+/home/magnotec/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/var.rs:
+/home/magnotec/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/private.rs:
+/home/magnotec/Projects/desktop/spotify-adwaita/target/release/build/thiserror-d7c72ce7e72be0f5/out/private.rs:
+
+# env-dep:OUT_DIR=/home/magnotec/Projects/desktop/spotify-adwaita/target/release/build/thiserror-d7c72ce7e72be0f5/out
