@@ -21,7 +21,7 @@ body,
     /* Libadwaita Dark Palette */
     --adw-window-bg: #222226;       /* Far window background, gaps, & bottom play bar */
     --adw-panel-bg: #333337;        /* Entire Home page, Library bar, Now Playing view */
-    --adw-card-bg: #3d3d42;         /* Elevated cards / callouts */
+    --adw-card-bg: #3d3d42;         /* Elevated cards / callouts / lyrics & artist cards */
     --adw-card-hover: #48484e;
     --adw-card-active: #52525a;
     --adw-accent: #3584e4;
@@ -112,6 +112,7 @@ section,
 /* C. Now Playing View (Right Side Panel) */
 .LtqMCWXd5Nkemkym,
 aside[aria-label="Now playing view"],
+.D6h5CmuWxAEBIDN9,
 .q_V1SHcOcAUk9Pa8,
 .vFJoEglidP04w4hC,
 [view-transition-name="cinema-hero-mode-background"] {
@@ -120,14 +121,26 @@ aside[aria-label="Now playing view"],
     border-radius: var(--adw-radius-medium) !important;
 }
 
-/* Neutralize ambient backdrop gradients inside Now Playing View */
+/* Neutralize ambient backdrop gradients & dark scrims in Now Playing View */
 .LtqMCWXd5Nkemkym .TLo_mZ7hWAaT3fsA,
-.TLo_mZ7hWAaT3fsA {
+.TLo_mZ7hWAaT3fsA,
+.VtEWI8U62smwnVfw,
+.rsCCLEn9gP40wCNp,
+.oCQMgeOLQ2tH0DsZ,
+.X8eqXqMjKs8yMGVw:before,
+.jDEJUdVW3pEDRC6E:before,
+.jDEJUdVW3pEDRC6E:after,
+.rFRM_ac94qAgSEIf,
+.po8s7jl0kxg30Oe3.AoRdDiPKqrA0ndpA,
+.R5ydRYn6w00kmLpN:after,
+.Z96twUyHDeA6Rv_x {
     display: none !important;
+    background: transparent !important;
     background-image: none !important;
 }
 
-.LtqMCWXd5Nkemkym * {
+.LtqMCWXd5Nkemkym *,
+aside[aria-label="Now playing view"] * {
     --cinema-mode-bg-color-from: var(--adw-panel-bg) !important;
     --cinema-mode-bg-color-to: var(--adw-panel-bg) !important;
     --cinema-mode-bg-image: none !important;
