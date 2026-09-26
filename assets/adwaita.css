@@ -79,7 +79,7 @@ footer,
 .Root__now-playing-bar {
     background-color: var(--adw-window-bg) !important;
     border-radius: 0 !important;
-    border-top: 1px solid var(--adw-border) !important;
+    border-top: none !important;
 }
 
 /* 3. The Main Inner Panels (Home Page, Library Bar, Now Playing View) -> #333337 */

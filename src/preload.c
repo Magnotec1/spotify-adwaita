@@ -295,6 +295,11 @@ static void* window_cmd_server(void* arg) {
                 close(client);
                 close(server_fd);
                 _exit(0);
+            } else if (strstr(buf, "/minimize") || strstr(buf, "/toggle_maximize")) {
+                const char* resp = "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: 2\r\n\r\nOK";
+                write(client, resp, strlen(resp));
+                close(client);
+                continue;
             } else if (strstr(buf, "/regions?r=")) {
                 char* r_str = strstr(buf, "/regions?r=") + 11;
                 char* end = strchr(r_str, ' ');

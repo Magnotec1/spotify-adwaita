@@ -69,27 +69,107 @@
     });
 
     // -------------------------------------------------------------
-    // 3. Shift Profile Avatar Container to prevent overlap
+    // 3. Shift Header UI Containers to prevent window control overlap
     // -------------------------------------------------------------
-    function updateProfileOffset() {
+    function updateHeaderOffsets() {
         const buttons = document.querySelectorAll('button:not(.adw-window-btn)');
+
+        // 1. Right window controls padding
+        const rightControls = document.getElementById('adw-window-controls');
+        let neededRightPadding = 0;
+        if (rightControls) {
+            const btns = rightControls.querySelectorAll('.adw-window-btn');
+            if (btns.length > 0) {
+                const rect = rightControls.getBoundingClientRect();
+                if (rect.width > 0) {
+                    neededRightPadding = Math.ceil(window.innerWidth - rect.left) + 4;
+                } else {
+                    neededRightPadding = 14 + btns.length * 26 + (btns.length - 1) * 8 + 4;
+                }
+            }
+        }
+
+        const nav = document.getElementById('global-nav-bar') || document.querySelector('[data-testid="global-nav-bar"]');
+
         let rightmost = null;
         let maxX = 0;
-
         for (const btn of buttons) {
             const rect = btn.getBoundingClientRect();
-            // Check buttons in the top header region (top <= 64px)
+            // Header buttons in top 64px region
             if (rect.top >= 0 && rect.top <= 64 && rect.right > maxX && rect.width > 0) {
                 maxX = rect.right;
                 rightmost = btn;
             }
         }
 
-        if (rightmost && maxX > window.innerWidth - 60) {
+        if (rightmost) {
             const container = rightmost.parentElement;
-            if (container && container.style.paddingRight !== '44px') {
-                container.style.paddingRight = '44px';
-                container.style.boxSizing = 'border-box';
+            if (container) {
+                if (neededRightPadding > 0) {
+                    const padStr = `${neededRightPadding}px`;
+                    if (container.style.paddingRight !== padStr) {
+                        container.style.paddingRight = padStr;
+                        container.style.boxSizing = 'border-box';
+                    }
+                } else if (container.style.paddingRight) {
+                    container.style.paddingRight = '';
+                }
+            }
+        } else if (nav && nav.lastElementChild) {
+            const container = nav.lastElementChild;
+            if (neededRightPadding > 0) {
+                const padStr = `${neededRightPadding}px`;
+                if (container.style.paddingRight !== padStr) {
+                    container.style.paddingRight = padStr;
+                    container.style.boxSizing = 'border-box';
+                }
+            } else if (container.style.paddingRight) {
+                container.style.paddingRight = '';
+            }
+        }
+
+        // 2. Left window controls padding
+        const leftControls = document.getElementById('adw-window-controls-left');
+        let neededLeftPadding = 0;
+        if (leftControls) {
+            const btns = leftControls.querySelectorAll('.adw-window-btn');
+            if (btns.length > 0) {
+                const rect = leftControls.getBoundingClientRect();
+                if (rect.width > 0) {
+                    neededLeftPadding = Math.ceil(rect.right) + 4;
+                } else {
+                    neededLeftPadding = 14 + btns.length * 26 + (btns.length - 1) * 8 + 4;
+                }
+            }
+        }
+
+        if (neededLeftPadding > 0) {
+            let leftmost = null;
+            let minX = Infinity;
+            for (const btn of buttons) {
+                const rect = btn.getBoundingClientRect();
+                if (rect.top >= 0 && rect.top <= 64 && rect.left < minX && rect.width > 0) {
+                    minX = rect.left;
+                    leftmost = btn;
+                }
+            }
+
+            if (leftmost) {
+                const container = leftmost.parentElement;
+                if (container) {
+                    const padStr = `${neededLeftPadding}px`;
+                    if (container.style.paddingLeft !== padStr) {
+                        container.style.paddingLeft = padStr;
+                        container.style.boxSizing = 'border-box';
+                    }
+                }
+            } else if (nav && nav.firstElementChild) {
+                const container = nav.firstElementChild;
+                const padStr = `${neededLeftPadding}px`;
+                if (container.style.paddingLeft !== padStr) {
+                    container.style.paddingLeft = padStr;
+                    container.style.boxSizing = 'border-box';
+                }
             }
         }
     }
@@ -98,14 +178,19 @@
     // 4. Seamless Window Controls Injection
     // -------------------------------------------------------------
     function setupWindowControls() {
-        if (document.getElementById('adw-window-controls')) return;
-
         const layout = window.GNOME_BUTTON_LAYOUT || "appmenu:close";
         const parts = layout.split(':');
-        const rightButtons = parts.length > 1 ? parts[1].split(',') : [];
+        const leftParts = parts[0] ? parts[0].split(',') : [];
+        const rightParts = parts.length > 1 ? parts[1].split(',') : [];
 
-        const container = document.createElement('div');
-        container.id = 'adw-window-controls';
+        function parseButtons(partList) {
+            return partList
+                .map(s => s.trim())
+                .filter(b => ['close', 'minimize', 'maximize'].includes(b));
+        }
+
+        const leftButtons = parseButtons(leftParts);
+        const rightButtons = parseButtons(rightParts);
 
         function createBtn(type) {
             const btn = document.createElement('button');
@@ -144,16 +229,24 @@
             return btn;
         }
 
-        for (const b of rightButtons) {
-            const clean = b.trim();
-            if (['close', 'minimize', 'maximize'].includes(clean)) {
-                container.appendChild(createBtn(clean));
+        if (leftButtons.length > 0 && !document.getElementById('adw-window-controls-left')) {
+            const leftContainer = document.createElement('div');
+            leftContainer.id = 'adw-window-controls-left';
+            for (const b of leftButtons) {
+                leftContainer.appendChild(createBtn(b));
             }
+            document.body.appendChild(leftContainer);
+            console.log('[spotify-adwaita] Controls injected for left layout:', leftButtons);
         }
 
-        if (container.children.length > 0) {
-            document.body.appendChild(container);
-            console.log('[spotify-adwaita] Controls injected for layout:', layout);
+        if (rightButtons.length > 0 && !document.getElementById('adw-window-controls')) {
+            const rightContainer = document.createElement('div');
+            rightContainer.id = 'adw-window-controls';
+            for (const b of rightButtons) {
+                rightContainer.appendChild(createBtn(b));
+            }
+            document.body.appendChild(rightContainer);
+            console.log('[spotify-adwaita] Controls injected for right layout:', rightButtons);
         }
     }
 
@@ -197,17 +290,28 @@
 
     function init() {
         setupWindowControls();
-        updateProfileOffset();
+        updateHeaderOffsets();
         syncDraggableRegions();
 
-        // Listen for window resize
-        window.addEventListener('resize', syncDraggableRegions);
+        let animFrameId = null;
+        function scheduleUpdate() {
+            if (animFrameId) return;
+            animFrameId = requestAnimationFrame(() => {
+                animFrameId = null;
+                updateHeaderOffsets();
+                syncDraggableRegions();
+            });
+        }
 
-        // Periodically verify profile offset and interactive buttons
-        setInterval(() => {
-            updateProfileOffset();
-            syncDraggableRegions();
-        }, 1000);
+        // Listen for window resize
+        window.addEventListener('resize', scheduleUpdate);
+
+        // Observe DOM mutations to immediately re-apply offsets on route change / SPA renders
+        const observer = new MutationObserver(scheduleUpdate);
+        observer.observe(document.body, { childList: true, subtree: true });
+
+        // Periodically verify offsets and interactive buttons (fallback safety)
+        setInterval(scheduleUpdate, 1000);
     }
 
     if (document.readyState === 'loading') {

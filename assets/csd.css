@@ -15,13 +15,24 @@ html, body {
     width: 100vw !important;
 }
 
-/* 2. Seamless Window Controls (Integrated into Top-Right) */
+/* 2. Seamless Window Controls (Integrated into Top-Right & Top-Left) */
 #adw-window-controls {
     display: inline-flex;
     align-items: center;
     position: fixed;
     top: 19px;
     right: 14px;
+    z-index: 99999999;
+    gap: 8px;
+    -webkit-app-region: no-drag !important;
+}
+
+#adw-window-controls-left {
+    display: inline-flex;
+    align-items: center;
+    position: fixed;
+    top: 19px;
+    left: 14px;
     z-index: 99999999;
     gap: 8px;
     -webkit-app-region: no-drag !important;
