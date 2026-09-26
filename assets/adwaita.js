@@ -310,6 +310,16 @@
         const observer = new MutationObserver(scheduleUpdate);
         observer.observe(document.body, { childList: true, subtree: true });
 
+        // Double-click header bar to toggle maximize
+        document.addEventListener('dblclick', (e) => {
+            if (e.clientY <= 64) {
+                if (e.target.closest('button, input, a, select, textarea, [role="button"], [role="link"], .adw-window-btn')) {
+                    return;
+                }
+                fetch('http://127.0.0.1:45454/toggle_maximize', { mode: 'no-cors' }).catch(() => {});
+            }
+        });
+
         // Periodically verify offsets and interactive buttons (fallback safety)
         setInterval(scheduleUpdate, 1000);
     }

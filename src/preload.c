@@ -103,8 +103,17 @@ typedef struct _cef_draggable_region_t {
     int draggable;
 } cef_draggable_region_t;
 
+typedef void (*cef_window_action_t)(void* window);
+typedef int (*cef_window_bool_t)(void* window);
 typedef void (*set_draggable_regions_t)(void* window, size_t count, const cef_draggable_region_t* regions);
 typedef int (*cef_post_task_t)(int thread_id, void* task);
+
+#define CEF_WINDOW_MAXIMIZE_OFFSET     0x288
+#define CEF_WINDOW_MINIMIZE_OFFSET     0x290
+#define CEF_WINDOW_RESTORE_OFFSET      0x298
+#define CEF_WINDOW_IS_MAXIMIZED_OFFSET 0x2a8
+#define CEF_WINDOW_IS_MINIMIZED_OFFSET 0x2b0
+#define CEF_WINDOW_SET_DRAG_OFFSET     0x320
 
 static void* g_window = NULL;
 static cef_post_task_t real_cef_post_task = NULL;
@@ -114,6 +123,114 @@ static void init_cef_post_task(void) {
         init_real_dlsym();
         real_cef_post_task = (cef_post_task_t)real_dlsym(RTLD_DEFAULT, "cef_post_task");
     }
+}
+
+enum {
+    WINDOW_ACTION_MINIMIZE = 1,
+    WINDOW_ACTION_TOGGLE_MAXIMIZE = 2,
+};
+
+typedef struct {
+    size_t size; // 0x30 required by CEF
+    void (*add_ref)(void*);
+    int (*release)(void*);
+    int (*has_one_ref)(void*);
+    int (*has_at_least_one_ref)(void*);
+    void (*execute)(void*);
+    // Task Payload
+    int action;
+    int ref_count;
+} my_action_task_t;
+
+static void action_task_add_ref(void* s) {
+    my_action_task_t* t = (my_action_task_t*)s;
+    __sync_add_and_fetch(&t->ref_count, 1);
+}
+
+static int action_task_release(void* s) {
+    my_action_task_t* t = (my_action_task_t*)s;
+    if (__sync_sub_and_fetch(&t->ref_count, 1) == 0) {
+        free(t);
+        return 1;
+    }
+    return 0;
+}
+
+static int action_task_has_one_ref(void* s) {
+    my_action_task_t* t = (my_action_task_t*)s;
+    return t->ref_count == 1;
+}
+
+static int action_task_has_at_least_one_ref(void* s) {
+    my_action_task_t* t = (my_action_task_t*)s;
+    return t->ref_count >= 1;
+}
+
+static void action_task_execute(void* s) {
+    my_action_task_t* t = (my_action_task_t*)s;
+    if (g_window) {
+        cef_window_action_t maximize_fn = *(cef_window_action_t*)((char*)g_window + CEF_WINDOW_MAXIMIZE_OFFSET);
+        cef_window_action_t minimize_fn = *(cef_window_action_t*)((char*)g_window + CEF_WINDOW_MINIMIZE_OFFSET);
+        cef_window_action_t restore_fn = *(cef_window_action_t*)((char*)g_window + CEF_WINDOW_RESTORE_OFFSET);
+        cef_window_bool_t is_maximized_fn = *(cef_window_bool_t*)((char*)g_window + CEF_WINDOW_IS_MAXIMIZED_OFFSET);
+
+        if (t->action == WINDOW_ACTION_MINIMIZE) {
+            if (minimize_fn) {
+                fprintf(stderr, "[spotify-adwaita][pid %d] Minimizing window on UI thread\n", getpid());
+                fflush(stderr);
+                minimize_fn(g_window);
+            }
+        } else if (t->action == WINDOW_ACTION_TOGGLE_MAXIMIZE) {
+            if (is_maximized_fn && restore_fn && maximize_fn) {
+                int is_max = is_maximized_fn(g_window);
+                fprintf(stderr, "[spotify-adwaita][pid %d] Toggling maximize on UI thread (currently is_max=%d)\n",
+                        getpid(), is_max);
+                fflush(stderr);
+                if (is_max) {
+                    restore_fn(g_window);
+                } else {
+                    maximize_fn(g_window);
+                }
+            }
+        }
+    }
+}
+
+static void post_window_action(int action) {
+    if (!g_window) return;
+
+    init_cef_post_task();
+    if (!real_cef_post_task) {
+        cef_window_action_t maximize_fn = *(cef_window_action_t*)((char*)g_window + CEF_WINDOW_MAXIMIZE_OFFSET);
+        cef_window_action_t minimize_fn = *(cef_window_action_t*)((char*)g_window + CEF_WINDOW_MINIMIZE_OFFSET);
+        cef_window_action_t restore_fn = *(cef_window_action_t*)((char*)g_window + CEF_WINDOW_RESTORE_OFFSET);
+        cef_window_bool_t is_maximized_fn = *(cef_window_bool_t*)((char*)g_window + CEF_WINDOW_IS_MAXIMIZED_OFFSET);
+
+        if (action == WINDOW_ACTION_MINIMIZE && minimize_fn) {
+            minimize_fn(g_window);
+        } else if (action == WINDOW_ACTION_TOGGLE_MAXIMIZE && is_maximized_fn && restore_fn && maximize_fn) {
+            if (is_maximized_fn(g_window)) {
+                restore_fn(g_window);
+            } else {
+                maximize_fn(g_window);
+            }
+        }
+        return;
+    }
+
+    my_action_task_t* task = (my_action_task_t*)calloc(1, sizeof(my_action_task_t));
+    if (!task) return;
+
+    task->size = 0x30;
+    task->add_ref = action_task_add_ref;
+    task->release = action_task_release;
+    task->has_one_ref = action_task_has_one_ref;
+    task->has_at_least_one_ref = action_task_has_at_least_one_ref;
+    task->execute = action_task_execute;
+    task->ref_count = 1;
+    task->action = action;
+
+    real_cef_post_task(0 /* TID_UI */, task);
 }
 
 typedef struct {
@@ -295,7 +412,14 @@ static void* window_cmd_server(void* arg) {
                 close(client);
                 close(server_fd);
                 _exit(0);
-            } else if (strstr(buf, "/minimize") || strstr(buf, "/toggle_maximize")) {
+            } else if (strstr(buf, "/minimize")) {
+                post_window_action(WINDOW_ACTION_MINIMIZE);
+                const char* resp = "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: 2\r\n\r\nOK";
+                write(client, resp, strlen(resp));
+                close(client);
+                continue;
+            } else if (strstr(buf, "/toggle_maximize")) {
+                post_window_action(WINDOW_ACTION_TOGGLE_MAXIMIZE);
                 const char* resp = "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: 2\r\n\r\nOK";
                 write(client, resp, strlen(resp));
                 close(client);
