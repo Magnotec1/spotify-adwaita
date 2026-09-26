@@ -1,6 +1,7 @@
 /**
  * Spotify Adwaita - GNOME Libadwaita Theme & Palette Overrides
- * Harmonizes Spotify with GNOME 47 dark mode (#222226 background, #333337 cards)
+ * Harmonizes Spotify with GNOME 47 dark mode
+ * Window/Gaps: #222226 | Main Panels (Home, Library, Now Playing): #333337
  */
 
 :root,
@@ -18,12 +19,11 @@ body,
     --encore-text-font-family: var(--adw-font) !important;
 
     /* Libadwaita Dark Palette */
-    --adw-window-bg: #222226;
-    --adw-view-bg: #222226;
-    --adw-headerbar-bg: #26262a;
-    --adw-card-bg: #333337;
-    --adw-card-hover: #3e3e44;
-    --adw-card-active: #4a4a50;
+    --adw-window-bg: #222226;       /* Far window background & panel gaps */
+    --adw-panel-bg: #333337;        /* Entire Home page, Library bar, Now Playing panel */
+    --adw-card-bg: #3d3d42;         /* Elevated cards / callouts */
+    --adw-card-hover: #48484e;
+    --adw-card-active: #52525a;
     --adw-accent: #3584e4;
     --adw-accent-hover: #1c71d8;
     --adw-accent-active: #15539e;
@@ -38,13 +38,13 @@ body,
     --adw-radius-small: 6px;
 
     /* Spotify Theme Overrides */
-    --background-base: var(--adw-window-bg) !important;
+    --background-base: var(--adw-panel-bg) !important;
     --background-highlight: var(--adw-card-bg) !important;
     --background-press: var(--adw-card-active) !important;
     --background-elevated-base: var(--adw-card-bg) !important;
     --background-elevated-highlight: var(--adw-card-hover) !important;
     --background-elevated-press: var(--adw-card-active) !important;
-    --color-to: var(--adw-window-bg) !important;
+    --color-to: var(--adw-panel-bg) !important;
     --text-base: var(--adw-text) !important;
     --text-subdued: var(--adw-text-secondary) !important;
     --essential-base: var(--adw-accent) !important;
@@ -58,65 +58,101 @@ html, body, button, input, select, textarea, [class*="encore"] {
     font-family: var(--adw-font) !important;
 }
 
-html, body {
-    background-color: var(--adw-window-bg) !important;
-}
-
-/* 2. Master Layout, Main Views, Home, Library, & Viewports (#000000 / #121212 -> #222226) */
+/* Far window background (outer frame and panel gaps) */
+html, body,
 .iRGr6yO6lPcAKUoT,
 .qPaMr9Jzt0_Doy3C,
-.vEHGULrufZMHBNrp,
-.YdGOYWQYr6kqh7KU,
-.B0fBZOXNHNc2YVYO,
-.F0DeHdUi7cNLlJ6D,
-.main-view-container,
-.Root__main-view,
-.Root__top-container,
-.Root__globalNav,
-.Root__nav-bar,
-.Root__now-playing-bar,
-.a66iQ41cA_IFrimo,
-.AwFAMwwvq1swp1Wm,
-.footer,
-.footer--full,
 header.header,
 .header,
 #main,
-.Root,
+.Root {
+    background-color: var(--adw-window-bg) !important;
+}
+
+/* 2. The 3 Main Inner Panels (Home Page, Library Bar, Now Playing Panel) -> #333337 */
+
+/* A. Left Sidebar / Library Bar */
+.vEHGULrufZMHBNrp,
+.F0DeHdUi7cNLlJ6D,
+nav,
+aside.vEHGULrufZMHBNrp,
+[data-testid="your-library-x"],
+[aria-label="Your Library"] {
+    background-color: var(--adw-panel-bg) !important;
+    border-radius: var(--adw-radius-medium) !important;
+}
+
+/* B. Main View / Home Page / All Route Views */
+.B0fBZOXNHNc2YVYO,
 main,
 section,
 [data-testid="main-view"],
-[data-testid="your-library-x"],
 [data-testid="home-page"],
+.main-view-container,
+.Root__main-view,
 .os-viewport,
 .os-content {
-    background-color: var(--adw-window-bg) !important;
+    background-color: var(--adw-panel-bg) !important;
+    border-radius: var(--adw-radius-medium) !important;
 }
 
-/* Outline color override for cinema mode / viewports */
-.kUPoamhLb3kO_sjj {
-    outline-color: var(--adw-window-bg) !important;
+/* C. Now Playing Panel / Bottom Bar & Right Panel */
+.YdGOYWQYr6kqh7KU,
+.LtqMCWXd5Nkemkym,
+aside[aria-label="Now playing view"],
+.Root__now-playing-bar,
+.footer,
+.footer--full {
+    background-color: var(--adw-panel-bg) !important;
+    border-radius: var(--adw-radius-medium) !important;
 }
 
-/* 3. Gradient overlays fading to #222226 */
+/* 3. Gradient Overlays fading smoothly to #333337 */
 .w_pH9jsYnqQikJRe,
 .CR9Q7cUHXSISBq2O {
-    background: linear-gradient(rgba(34, 34, 38, 0), var(--adw-window-bg)) !important;
+    background: linear-gradient(rgba(51, 51, 55, 0), var(--adw-panel-bg)) !important;
 }
 
 .Q7ciR0kAsukiCprc {
-    background-image: linear-gradient(rgba(0, 0, 0, 0.2) 0%, var(--adw-window-bg) 100%), var(--background-noise) !important;
+    background-image: linear-gradient(rgba(0, 0, 0, 0.2) 0%, var(--adw-panel-bg) 100%), var(--background-noise) !important;
 }
 
 .bHqdRdxo4vtOizQq:after {
-    background-color: var(--adw-window-bg) !important;
-    background-image: linear-gradient(rgba(0, 0, 0, 0.2) 0, var(--adw-window-bg) 100%) !important;
+    background-color: var(--adw-panel-bg) !important;
+    background-image: linear-gradient(rgba(0, 0, 0, 0.2) 0, var(--adw-panel-bg) 100%) !important;
 }
 
-/* 4. Cards & Elevated Containers (#333337) */
+/* 4. Item Cards inside Views (Transparent on Home Page, with subtle hover) */
+.e-10451-card,
+[data-testid="card-click-handler"],
+[data-testid="card-container"],
+.main-card-card {
+    background-color: transparent !important;
+    border-radius: var(--adw-radius-medium) !important;
+    transition: background-color 0.2s ease !important;
+}
+
+.e-10451-card:hover,
+[data-testid="card-click-handler"]:hover,
+.main-card-card:hover {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Callout boxes in library (e.g. "Create your first playlist") */
 ._kx6PbIX2n8MJzEV,
 .iGrz9_1aUhECnc_S,
-.Re_OXhMIUkvAxhof,
+.Re_OXhMIUkvAxhof {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border-radius: var(--adw-radius-medium) !important;
+}
+
+._kx6PbIX2n8MJzEV:hover,
+.iGrz9_1aUhECnc_S:hover,
+.Re_OXhMIUkvAxhof:hover {
+    background-color: rgba(255, 255, 255, 0.09) !important;
+}
+
+/* Modals & Dialogs */
 .b6J3HYAs6u045OoG,
 .p5LJBmlswjcRT458,
 .iz1mMhb4xK8F9WhD,
@@ -127,25 +163,64 @@ section,
 .byg_Psq6ersB6pZZ,
 .Ro8Wai2k3gdBSfGf,
 .VCPgr3ThFqEkbXSK .o78onbRrOL0X0j_g,
-.NJh1B8rnlSUlK7sY,
-.e-10451-card,
-[data-testid="card-click-handler"],
-[data-testid="card-container"],
-.main-card-card {
+.NJh1B8rnlSUlK7sY {
     background-color: var(--adw-card-bg) !important;
     border-radius: var(--adw-radius-large) !important;
+    border: 1px solid var(--adw-border) !important;
 }
 
-/* Card hover */
-._kx6PbIX2n8MJzEV:hover,
-.iGrz9_1aUhECnc_S:hover,
-.Re_OXhMIUkvAxhof:hover,
-[data-testid="card-click-handler"]:hover,
-.main-card-card:hover {
-    background-color: var(--adw-card-hover) !important;
+/* 5. Fix black hover line & resizers when now playing panel is hidden */
+[data-right-sidebar-hidden="true"] .LayoutResizer__resize-bar,
+[data-right-sidebar-hidden="true"] .LayoutResizer__inline-end,
+[data-right-sidebar-hidden="true"] .LayoutResizer__inline-start,
+[data-right-sidebar-hidden="true"] .LayoutResizer__resize-overlay {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
 }
 
-/* 5. Friend Activity (Buddy Feed) Polish */
+.LayoutResizer__resize-bar {
+    background-color: transparent !important;
+}
+
+.LayoutResizer__inline-end:after,
+.LayoutResizer__inline-start:after {
+    background-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+.LayoutResizer__resize-bar:hover,
+.LayoutResizer__resize-bar:focus-within,
+.LayoutResizer__resize-bar--resizing {
+    background-color: transparent !important;
+}
+
+.LayoutResizer__resize-bar:hover:after,
+.LayoutResizer__resize-bar:hover:before,
+.LayoutResizer__inline-end:hover:after,
+.LayoutResizer__inline-start:hover:after {
+    background-color: rgba(255, 255, 255, 0.25) !important;
+}
+
+.oKUfo4h5iDMxrEqc.gjoRouaAyUze55LR:before {
+    background-color: var(--adw-window-bg) !important;
+}
+
+.qnaFIKUJ9oUIkN97 > * {
+    background-color: var(--adw-window-bg) !important;
+}
+
+.q_V1SHcOcAUk9Pa8,
+.kUPoamhLb3kO_sjj {
+    outline-color: var(--adw-window-bg) !important;
+    border-color: var(--adw-window-bg) !important;
+}
+
+.ZYkcZbyZfIM1jXLj {
+    background-color: var(--adw-panel-bg) !important;
+}
+
+/* 6. Friend Activity (Buddy Feed) Polish */
 .xsEirB_t11cLPyJj {
     border-radius: var(--adw-radius-medium) !important;
     padding: 6px 10px !important;
@@ -154,7 +229,7 @@ section,
 }
 
 .xsEirB_t11cLPyJj:hover {
-    background-color: var(--adw-card-hover) !important;
+    background-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 .dh732yRltYdmu3cX,
@@ -164,10 +239,10 @@ section,
 
 .MFrZh1qCrEB0Mim5 {
     border-radius: 4px !important;
-    box-shadow: 0 0 0 2px var(--adw-window-bg) !important;
+    box-shadow: 0 0 0 2px var(--adw-panel-bg) !important;
 }
 
-/* 6. Minimalist Adwaita Scrollbars */
+/* 7. Minimalist Adwaita Scrollbars */
 ::-webkit-scrollbar {
     width: 8px !important;
     height: 8px !important;
