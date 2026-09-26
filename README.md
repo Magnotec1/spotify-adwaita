@@ -2,49 +2,33 @@
 
 A lightweight tool written in Rust to inject **GNOME Libadwaita styling**, **eliminate the Wayland blue borders**, and **debloat/optimize Spotify on Linux**.
 
----
-
 ## How It Solves the Blue Border (Without X11)
 
 On GNOME Wayland, Spotify creates top-level windows using CEF's Views framework (`cef_window_create_top_level`). On Linux, Spotify's window delegate hardcodes `is_frameless = 0` (unlike Windows where it defaults to frameless). This instructs Chromium/CEF to render a fallback client-side titlebar and border using GNOME's blue accent color (`#3584e4`).
 
-`spotify-adwaita` provides an elegant, 100% native Wayland solution:
+`spotify-adwaita` provides a solution:
 1. **The Preload Hook ([`src/preload.c`](file:///home/magnotec/Projects/desktop/spotify-adwaita/src/preload.c)):**
    * Flatpak's Spotify launcher unconditionally loads `/app/lib/spotify-preload.so`.
    * We intercept `cef_window_create_top_level` via `LD_PRELOAD`.
    * We patch the window delegate's `is_frameless` callback at offset `0xd0` to return `1` (true).
    * **Result:** Spotify launches completely borderless and titlebarless on native Wayland! No blue outline, no fallback titlebar!
-2. **Native Wayland Ozone Flags:**
-   * Configures `spotify-flags.conf` for `--ozone-platform=wayland` and `--enable-features=UseOzonePlatform` with direct GPU rasterization and zero-copy rendering.
+2. **Flags:**
+   * Configures `spotify-flags.conf` for `--ozone-platform=wayland` and `--enable-features=UseOzonePlatform` to ensure wayland usage
 3. **Libadwaita Web UI Integration:**
-   * Injects GNOME Adwaita dark colors, clean scrollbars, and refined **Friend Activity (Buddy Feed)** cards into `xpui.spa`.
+   * Optionally Injects GNOME Adwaita dark theming into `xpui.spa`.
    * Blocks tracking beacons (`exp.wg.spotify.com`, `crashdump.spotify.com`, `pixel.spotify.com`) and throttles background rendering when the window is hidden.
 
----
-
-## Usage
-
-### 1. View Current Status
+## Usage/Installation
 ```bash
-./target/release/spotify-adwaita status
-```
+  git clone https://github.com/Magnotec1/spotify-adwaita.git
+  cd ./spotify-adwaita
+  cargo build --release
 
-### 2. Apply Borderless Hook & Theme
-```bash
-./target/release/spotify-adwaita apply --restart
-```
+  ./target/release/spotify-adwaita apply # Stock spotify without theming, just titlebar fixes
+  ./target/release/spotify-adwaita apply --theme # With theming
 
-### 3. Restore 100% Stock Spotify
-```bash
-./target/release/spotify-adwaita restore --restart
+  ./target/release/spotify-adwaita restore --restart # Reset and undo all changes made
 ```
-
-### 4. Restart Spotify
-```bash
-./target/release/spotify-adwaita restart
-```
-
----
 
 ## Project Structure
 
